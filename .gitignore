@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.DS_Store
+node_modules/
+.next/
+.vercel/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Archivos sensibles y propiedad intelectual de obra (nunca versionar)
+*firma*
+*certificacion*
+*cedula*
+*.dwg
+*.dxf
+*.rvt
+*.rfa
+*.rte
+*.ifc
+*.pdf
+*.xlsx
+*.xlsm
