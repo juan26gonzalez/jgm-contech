@@ -5,12 +5,8 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
-  CalendarClock,
-  CheckCircle2,
   ClipboardList,
-  Globe2,
   Landmark,
-  Layers,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
@@ -74,42 +70,40 @@ export default function TabPanelEjecutivo({
   const totalContratadoAiu = totals.total_ppto_contratado * (1 + pctAiu);
   const totalEjecAiu = totals.total_costo_ejecutado * (1 + pctAiu);
   const currencyPrefix = currency === "EUR" ? "€" : "$";
+  const hasOverrun = totals.total_sobrecosto_cop > 0;
 
   const kpis = [
     {
       label: tr.exec.kpiBaseDirect,
       value: formatMoney(totals.total_ppto_contratado),
       sub: `${tr.exec.withAiu}: ${formatMoney(totalContratadoAiu)}`,
-      border: "border-l-4 border-l-slate-800",
+      dot: "bg-slate-400",
       valColor: "text-slate-900",
+      progressPct: null as number | null,
     },
     {
       label: tr.exec.kpiExecDirect,
       value: formatMoney(totals.total_costo_ejecutado),
-      sub: `${totals.avance_financiero_global.toFixed(1)}% ${tr.exec.financialPct} (${tr.exec.withAiu}: ${formatMoney(totalEjecAiu)})`,
-      border: "border-l-4 border-l-emerald-500",
+      sub: `${totals.avance_fisico_ponderado.toFixed(1)}% · ${tr.exec.withAiu}: ${formatMoney(totalEjecAiu)}`,
+      dot: "bg-emerald-500",
       valColor: "text-emerald-700",
+      progressPct: Math.min(totals.avance_fisico_ponderado, 100),
     },
     {
       label: tr.exec.kpiRemaining,
       value: formatMoney(totals.total_saldo_dinero),
       sub: tr.exec.contractAvailable,
-      border: "border-l-4 border-l-slate-600",
+      dot: "bg-sky-500",
       valColor: "text-slate-900",
+      progressPct: null as number | null,
     },
     {
       label: tr.exec.kpiOverruns,
       value: formatMoney(totals.total_sobrecosto_cop),
-      sub:
-        totals.total_sobrecosto_cop > 0
-          ? tr.exec.overrunNeeded
-          : tr.exec.noOverruns,
-      border:
-        totals.total_sobrecosto_cop > 0
-          ? "border-l-4 border-l-red-500"
-          : "border-l-4 border-l-emerald-500",
-      valColor:
-        totals.total_sobrecosto_cop > 0 ? "text-red-600" : "text-emerald-700",
+      sub: hasOverrun ? tr.exec.overrunNeeded : tr.exec.noOverruns,
+      dot: hasOverrun ? "bg-rose-500" : "bg-emerald-500",
+      valColor: hasOverrun ? "text-rose-600" : "text-emerald-700",
+      progressPct: null as number | null,
     },
   ];
 
@@ -124,91 +118,121 @@ export default function TabPanelEjecutivo({
     };
   });
 
-  const standardsBadges = [
-    {
-      icon: Layers,
-      label: "ISO 19650 Information Mgmt",
-    },
-    {
-      icon: Globe2,
-      label: "OpenBIM IFC 2x3 / IFC4",
-    },
-    {
+  const paySum = payrollState ? computePayrollSummary(payrollState, lang) : null;
+
+  const pulseCards: {
+    tab: TabKey;
+    icon: React.ComponentType<{ className?: string }>;
+    accent: string;
+    title: string;
+    primary: string;
+    meta: string;
+  }[] = [];
+
+  if (sstSummary) {
+    pulseCards.push({
+      tab: "sst",
       icon: ShieldCheck,
-      label: "PMI Earned Value (EVM)",
-    },
-    {
-      icon: CalendarClock,
-      label: "MS Project 4D Live Sync",
-    },
-  ];
+      accent: "text-emerald-600",
+      title: lang === "en" ? "Safety & HSE" : "Seguridad & SST",
+      primary: `${sstSummary.diasSinLti} ${lang === "en" ? "LTI-free d" : "días sin LTI"}`,
+      meta: `${sstSummary.permisosActivos} PTAR · ${sstSummary.eppPct}% ${lang === "en" ? "PPE" : "EPP"}`,
+    });
+  }
+  if (paySum) {
+    pulseCards.push({
+      tab: "nomina",
+      icon: Wallet,
+      accent: "text-sky-600",
+      title: lang === "en" ? `Payroll (${paySum.periodo})` : `Nómina (${paySum.periodo})`,
+      primary: formatMoney(paySum.netoPagarCop),
+      meta: `${paySum.trabajadores} ${lang === "en" ? "crews/staff" : "cuadrillas/roles"}`,
+    });
+  }
+  if (suppliersSummary) {
+    pulseCards.push({
+      tab: "proveedores",
+      icon: Building2,
+      accent: "text-amber-600",
+      title: lang === "en" ? "Procurement & AP" : "Proveedores & OC",
+      primary: formatMoney(suppliersSummary.cuentasPorPagarCop),
+      meta: `${suppliersSummary.ordenesAbiertas} ${lang === "en" ? "open POs" : "OC abiertas"} · ${suppliersSummary.cumplimientoEntregaPct}%`,
+    });
+  }
+  if (clientsSummary) {
+    pulseCards.push({
+      tab: "clientes",
+      icon: Landmark,
+      accent: "text-indigo-600",
+      title: lang === "en" ? "Billing & AR" : "Clientes & Cobro",
+      primary: formatMoney(clientsSummary.cuentasPorCobrarCop),
+      meta: `${lang === "en" ? "Collected:" : "Caja:"} ${formatMoney(clientsSummary.totalRecaudadoCop)}`,
+    });
+  }
 
   return (
-    <div className="space-y-5">
-      {/* KPI Bento Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      {/* 4 Minimalist KPI Bento Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
         {kpis.map((k) => (
-          <div key={k.label} className={`bento-card ${k.border}`}>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              {k.label}
+          <div key={k.label} className="bento-card !p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${k.dot}`} />
+                <span className="truncate">{k.label}</span>
+              </div>
+              <div className={`kpi-num text-xl sm:text-2xl font-bold mt-1.5 tracking-tight ${k.valColor}`}>
+                {k.value}
+              </div>
             </div>
-            <div className={`kpi-num text-xl sm:text-2xl font-extrabold mt-1 ${k.valColor}`}>
-              {k.value}
-            </div>
-            <div className="text-[11px] font-semibold text-slate-500 mt-1">
-              {k.sub}
+
+            <div className="mt-2 space-y-1.5">
+              {k.progressPct !== null && (
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${k.progressPct}%` }}
+                  />
+                </div>
+              )}
+              <div className="text-[11px] font-medium text-slate-500 truncate">{k.sub}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Physical Progress Bar */}
-      <div className="bento-card">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <div>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-              {tr.exec.physicalProgressTitle}
-            </span>
+      {/* Chart + Chapter Breakdown */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div className="xl:col-span-7 bento-card !p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                <BarChart3 className="w-4 h-4 text-slate-500 shrink-0" />
+                <span>
+                  {tr.exec.chartTitle} ({chartUnitSuffix})
+                </span>
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">{tr.exec.chartSub}</p>
+            </div>
           </div>
-          <span className="font-mono text-sm font-extrabold text-slate-900">
-            {totals.avance_fisico_ponderado.toFixed(2)}% {tr.exec.completedLabel}
-          </span>
-        </div>
-        <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${Math.min(totals.avance_fisico_ponderado, 100)}%`,
-              background: "linear-gradient(90deg, #334155 0%, #0f172a 48%, #10b981 100%)",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Chart + Chapter Table */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-        <div className="xl:col-span-7 bento-card">
-          <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900 mb-1">
-            <BarChart3 className="w-4 h-4 text-slate-600 shrink-0" />
-            <span>
-              {tr.exec.chartTitle} ({chartUnitSuffix})
-            </span>
-          </h3>
-          <p className="text-xs text-slate-500 mb-4">{tr.exec.chartSub}</p>
-          <div className="h-[320px] w-full">
+          <div className="h-[290px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 25 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 12 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 10, fill: "#475569", fontWeight: 600 }}
+                  tick={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }}
                   angle={-15}
                   textAnchor="end"
-                  height={55}
+                  height={46}
+                  axisLine={{ stroke: "#e2e8f0" }}
+                  tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: "#475569" }}
+                  tick={{ fontSize: 10, fill: "#64748b" }}
                   tickFormatter={(v) => `${currencyPrefix}${v}`}
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <Tooltip
                   formatter={(val) => [
@@ -216,38 +240,39 @@ export default function TabPanelEjecutivo({
                     "",
                   ]}
                   contentStyle={{
-                    borderRadius: 12,
-                    borderColor: "#cbd5e1",
+                    borderRadius: 10,
+                    borderColor: "#e2e8f0",
                     fontSize: 12,
+                    boxShadow: "0 4px 12px rgba(15,23,42,0.08)",
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 12, fontWeight: 700 }} />
+                <Legend wrapperStyle={{ fontSize: 11, fontWeight: 600, paddingTop: 8 }} />
                 <Bar
                   dataKey="Presupuestado"
                   name={tr.exec.barBudget}
-                  fill="#94a3b8"
-                  radius={[6, 6, 0, 0]}
+                  fill="#cbd5e1"
+                  radius={[5, 5, 0, 0]}
                 />
                 <Bar
                   dataKey="Ejecutado"
                   name={tr.exec.barExec}
                   fill="#0f172a"
-                  radius={[6, 6, 0, 0]}
+                  radius={[5, 5, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="xl:col-span-5 bento-card overflow-hidden">
-          <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900 mb-1">
-            <ClipboardList className="w-4 h-4 text-slate-600 shrink-0" />
+        <div className="xl:col-span-5 bento-card !p-5 overflow-hidden">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+            <ClipboardList className="w-4 h-4 text-slate-500 shrink-0" />
             <span>{tr.exec.chapterTableTitle}</span>
           </h3>
-          <p className="text-xs text-slate-500 mb-3">{tr.exec.chapterTableSub}</p>
-          <div className="overflow-x-auto max-h-[320px]">
+          <p className="text-[11px] text-slate-500 mt-0.5 mb-3">{tr.exec.chapterTableSub}</p>
+          <div className="overflow-x-auto max-h-[290px]">
             <table className="w-full text-xs text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 sticky top-0">
+              <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-wider font-semibold border-b border-slate-200 sticky top-0">
                 <tr>
                   <th className="py-2 px-2">{tr.exec.colChapter}</th>
                   <th className="py-2 px-2 text-right">{tr.exec.colBudget}</th>
@@ -257,24 +282,24 @@ export default function TabPanelEjecutivo({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {resumen_caps.map((cap) => (
-                  <tr key={cap.Capitulo} className="hover:bg-slate-50">
-                    <td className="py-2.5 px-2 font-bold text-slate-800">
+                  <tr key={cap.Capitulo} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="py-1.5 px-2 font-semibold text-slate-800">
                       {localizeChapter(cap.Capitulo, lang)}
                     </td>
-                    <td className="py-2.5 px-2 text-right font-mono text-slate-700">
+                    <td className="py-1.5 px-2 text-right font-mono text-slate-500 whitespace-nowrap">
                       {formatMoney(cap.Presupuesto_Total)}
                     </td>
-                    <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-900">
+                    <td className="py-1.5 px-2 text-right font-mono font-semibold text-slate-900 whitespace-nowrap">
                       {formatMoney(cap.Costo_Ejecutado)}
                     </td>
-                    <td className="py-2.5 px-2 text-right font-mono font-bold">
+                    <td className="py-1.5 px-2 text-right font-mono font-semibold whitespace-nowrap">
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] ${
                           cap["Avance_%"] >= 99
-                            ? "bg-emerald-100 text-emerald-800"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : cap["Avance_%"] > 0
-                            ? "bg-slate-200 text-slate-900 border border-slate-300"
-                            : "bg-slate-100 text-slate-600"
+                            ? "bg-slate-100 text-slate-800"
+                            : "text-slate-400"
                         }`}
                       >
                         {cap["Avance_%"].toFixed(1)}%
@@ -288,198 +313,56 @@ export default function TabPanelEjecutivo({
         </div>
       </div>
 
-      {(sstSummary || payrollState || suppliersSummary || clientsSummary) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-          {sstSummary && (
-            <div className="bento-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-4">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  {lang === "en" ? "HSE / Jobsite Safety Pulse" : "Pulso SST & Seguridad en Obra"}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-900">
-                  <span>
-                    {sstSummary.diasSinLti} {lang === "en" ? "LTI-free days" : "días sin LTI"}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span>
-                    {sstSummary.permisosActivos} {lang === "en" ? "active PTAR" : "PTAR vigentes"}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span className="text-emerald-700">
-                    {sstSummary.eppPct}% {lang === "en" ? "PPE" : "EPP"}
-                  </span>
-                </div>
-              </div>
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab("sst")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shrink-0 self-start sm:self-center transition-colors"
-                >
-                  {tr.tabs.sst}
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {payrollState && (() => {
-            const paySum = computePayrollSummary(payrollState, lang);
+      {/* 4 Uniform Compact ERP / Field Pulse Cards */}
+      {pulseCards.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+          {pulseCards.map((card) => {
+            const Icon = card.icon;
             return (
-              <div className="bento-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-4">
-                <div className="space-y-1">
-                  <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-sky-700">
-                    <Wallet className="w-3.5 h-3.5" />
-                    {lang === "en"
-                      ? `Payroll & Piecework Pulse (${paySum.periodo})`
-                      : `Pulso Nómina Mixta & Destajo (${paySum.periodo})`}
+              <button
+                key={card.tab}
+                type="button"
+                onClick={() => onNavigateTab?.(card.tab)}
+                className="bento-card !p-3.5 text-left flex flex-col justify-between gap-2 group"
+              >
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <Icon className={`w-3.5 h-3.5 ${card.accent}`} />
+                    {card.title}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900 font-mono tabular-nums">
+                    {card.primary}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-900">
-                    <span>
-                      {lang === "en" ? "Net:" : "Neto:"} {formatMoney(paySum.netoPagarCop)}
-                    </span>
-                    <span className="text-slate-500">•</span>
-                    <span>
-                      {lang === "en" ? "Burden Cost:" : "Costo Emp.:"}{" "}
-                      {formatMoney(paySum.costoTotalEmpresaCop)}
-                    </span>
-                    <span className="text-slate-500">•</span>
-                    <span className="text-sky-700">
-                      {paySum.trabajadores} {lang === "en" ? "crews/staff" : "cuadrillas/roles"}
-                    </span>
+                  <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                    {card.meta}
                   </div>
                 </div>
-                {onNavigateTab && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateTab("nomina")}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shrink-0 self-start sm:self-center transition-colors"
-                  >
-                    {tr.tabs.nomina}
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
+              </button>
             );
-          })()}
-
-          {suppliersSummary && (
-            <div className="bento-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-4">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-700">
-                  <Building2 className="w-3.5 h-3.5" />
-                  {lang === "en"
-                    ? "Procurement, Suppliers & Accounts Payable"
-                    : "Pulso Proveedores, OC & Cartera CxP"}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-900">
-                  <span>
-                    {lang === "en" ? "AP Due:" : "CxP Saldo:"}{" "}
-                    {formatMoney(suppliersSummary.cuentasPorPagarCop)}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span>
-                    {suppliersSummary.ordenesAbiertas}{" "}
-                    {lang === "en" ? "open POs" : "OC abiertas"}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span className="text-amber-700">
-                    {suppliersSummary.cumplimientoEntregaPct}%{" "}
-                    {lang === "en" ? "delivered" : "recibido"}
-                  </span>
-                </div>
-              </div>
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab("proveedores")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shrink-0 self-start sm:self-center transition-colors"
-                >
-                  {tr.tabs.proveedores}
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {clientsSummary && (
-            <div className="bento-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 px-4">
-              <div className="space-y-1">
-                <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-indigo-700">
-                  <Landmark className="w-3.5 h-3.5" />
-                  {lang === "en"
-                    ? "Client Billing, Cash & Receivables (AR)"
-                    : "Pulso Clientes, Actas & Cartera CxC"}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-slate-900">
-                  <span>
-                    {lang === "en" ? "AR Due:" : "CxC Cobro:"}{" "}
-                    {formatMoney(clientsSummary.cuentasPorCobrarCop)}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span>
-                    {lang === "en" ? "Unbilled WIP:" : "Por Facturar:"}{" "}
-                    {formatMoney(clientsSummary.porFacturarDeEjecucionCop)}
-                  </span>
-                  <span className="text-slate-500">•</span>
-                  <span className="text-emerald-700">
-                    {lang === "en" ? "Collected:" : "Caja:"}{" "}
-                    {formatMoney(clientsSummary.totalRecaudadoCop)}
-                  </span>
-                </div>
-              </div>
-              {onNavigateTab && (
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab("clientes")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold shrink-0 self-start sm:self-center transition-colors"
-                >
-                  {tr.tabs.clientes}
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )}
+          })}
         </div>
       )}
 
-      {/* Enterprise BIM & EVM Standards Strip */}
-      <div className="bento-card flex flex-wrap items-center justify-between gap-3 py-3.5 px-4">
-        <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-slate-700">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{tr.exec.standardsStripTitle}</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {standardsBadges.map((b) => {
-            const Icon = b.icon;
-            return (
-              <span
-                key={b.label}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-700"
-              >
-                <Icon className="w-3 h-3 text-emerald-600 shrink-0" />
-                {b.label}
-              </span>
-            );
-          })}
-          {currency !== "COP" && (
-            <span
-              className="text-[10px] font-semibold text-slate-500 ml-1"
-              title={tr.exec.exchangeDisclaimer}
-            >
-              • {lang === "en" ? "FX Ref" : "TRM Ref"}: 1 {currency} = $
-              {(rates[currency] > 0
-                ? Math.round(rates[currency])
-                : currency === "EUR"
-                ? 4680
-                : 4350
-              ).toLocaleString("en-US")}{" "}
-              COP ({fxLive ? (lang === "en" ? "Live Market FX" : "TRM Mercado en Vivo") : tr.exec.exchangeDisclaimer})
-            </span>
-          )}
-        </div>
+      {/* Subtle Minimalist Standards Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-1 text-[11px] text-slate-500">
+        <span className="font-medium">
+          ISO 19650 · OpenBIM IFC 2x3 / IFC4 · PMI Earned Value (EVM) · MS Project 4D
+        </span>
+        {currency !== "COP" && (
+          <span className="font-mono text-[10px]" title={tr.exec.exchangeDisclaimer}>
+            1 {currency} = $
+            {(rates[currency] > 0
+              ? Math.round(rates[currency])
+              : currency === "EUR"
+              ? 4680
+              : 4350
+            ).toLocaleString("en-US")}{" "}
+            COP ({fxLive ? (lang === "en" ? "Live FX" : "TRM Vivo") : tr.exec.exchangeDisclaimer})
+          </span>
+        )}
       </div>
     </div>
   );

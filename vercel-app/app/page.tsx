@@ -478,6 +478,8 @@ export default function GerenciaBim5DPage() {
         proyectos={proyectos}
         proyectoActivoId={proyectoActual.id}
         onSelectProyecto={handleSelectProyecto}
+        activeTab={activeTab}
+        onChangeTab={setActiveTab}
         onOpenNewModal={() => setNewModalOpen(true)}
         onDeleteCustomProyecto={handleDeleteCustomProject}
         onExportBackup={handleExportBackup}
@@ -494,7 +496,7 @@ export default function GerenciaBim5DPage() {
         isDemo={isDemo}
       />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-7 max-w-[1440px] mx-auto w-full space-y-5">
+      <main className="flex-1 min-w-0 p-4 sm:p-5 lg:p-6 max-w-[1440px] mx-auto w-full space-y-4">
         <TopHeader
           proyecto={proyectoActual}
           totals={activeData.totals}
