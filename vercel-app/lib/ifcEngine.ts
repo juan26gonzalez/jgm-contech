@@ -539,20 +539,21 @@ export async function parseIfcFileBuffer(
 }
 
 const IFC_TYPE_FALLBACK_KEYWORDS: Record<string, string[]> = {
-  IFCCOVERING: ["cielo raso", "cielorraso", "ceiling"],
+  IFCCOVERING: ["alfajia", "cielo raso", "cielorraso", "ceiling"],
   IFCFOOTING: ["zapata", "zapatas", "cimentacion", "solado", "pedestal"],
   IFCCOLUMN: ["columna", "columnas", "pedestal", "pedestales", "portico"],
-  IFCBEAM: ["viga", "vigas", "cimentacion", "inclinada", "corona", "cumbrera"],
-  IFCMEMBER: ["correa", "correas", "pag", "perfil", "metalica"],
-  IFCROOF: ["cubierta", "upvc", "teja", "techo", "caballete"],
-  IFCWALL: ["bloque", "mamposteria", "muro"],
-  IFCWALLSTANDARDCASE: ["bloque", "mamposteria", "muro"],
-  IFCWALLELEMENTEDCASE: ["bloque", "mamposteria", "muro"],
+  IFCBEAM: ["viga", "vigas", "cimentacion", "cubierta"],
+  IFCMEMBER: ["correa", "correas", "perfil", "metalica"],
+  IFCROOF: ["cubierta", "pendiente", "impermeabilizacion", "techo"],
+  IFCWALL: ["bloque", "mamposteria", "muro", "antepecho", "parapeto"],
+  IFCWALLSTANDARDCASE: ["bloque", "mamposteria", "muro", "antepecho", "parapeto"],
+  IFCWALLELEMENTEDCASE: ["bloque", "mamposteria", "muro", "antepecho", "parapeto"],
   IFCDOOR: ["puerta", "puertas"],
   IFCWINDOW: ["ventana", "ventanas", "ventaneria"],
   IFCSLAB: ["placa", "losa", "contrapiso", "balcon", "porcelanato", "enchape", "solado"],
   IFCSTAIR: ["escalera", "grada", "descanso"],
   IFCRAILING: ["baranda", "pasamano", "balcon"],
+  IFCPIPESEGMENT: ["bajante", "tubo", "tuberia", "pvc", "agua lluvia", "tragante"],
 };
 
 function findBestBudgetRowMatch(
@@ -580,7 +581,10 @@ function findBestBudgetRowMatch(
     if (actNorm.includes("plantilla") && txt.includes("plantilla")) score += 4;
     if (actNorm.includes("porcelanato") && (txt.includes("porcelanato") || txt.includes("enchape"))) score += 4;
     if (actNorm.includes("frescasa") && (txt.includes("frescasa") || txt.includes("aislamiento") || txt.includes("fibra"))) score += 6;
-    if (actNorm.includes("cielo raso") && !actNorm.includes("frescasa") && (txt.includes("cielo") || meta.ifcType === "IFCCOVERING")) score += 4;
+    if (actNorm.includes("cielo raso") && !actNorm.includes("frescasa") && !txt.includes("alfaj") && (txt.includes("cielo") || meta.ifcType === "IFCCOVERING")) score += 4;
+    if (actNorm.includes("alfaj") && txt.includes("alfaj")) score += 6;
+    if ((actNorm.includes("bajante") || actNorm.includes("pluvial")) && (txt.includes("bajante") || txt.includes("pvc sanitario") || meta.ifcType === "IFCPIPESEGMENT")) score += 6;
+    if (actNorm.includes("losa cubierta") && (txt.includes("losa maciza cubierta") || txt.includes("pendiente 1%") || txt.includes("impermeabilizacion"))) score += 6;
 
     if (score > bestScore) {
       bestScore = score;

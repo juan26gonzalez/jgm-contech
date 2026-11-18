@@ -1412,7 +1412,7 @@ export default function TabVisor3DBIM({
                     q: isEn ? "Beam" : "Viga",
                     label: isEn
                       ? `${rebarSummary.beams} Beams (VC/VE/VCU #4/#5 • #3 135°)`
-                      : `${rebarSummary.beams} Vigas VC/VE/VCU/VI (#4/#5 • Est. #3 135°)`,
+                      : `${rebarSummary.beams} Vigas VC/VE/VCU (#4/#5 • Est. #3 135°)`,
                   },
                   {
                     q: isEn ? "Slab" : "Losa",

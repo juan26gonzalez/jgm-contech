@@ -71,7 +71,7 @@ const ACTIVITY_LABELS_ES: Record<RoomActivityKey, string> = {
   panete: "Pañete muros",
   pintura: "Estuco y pintura",
   carpinteria: "Carpintería (puertas/ventanas)",
-  cubierta: "Cubierta UPVC + Correas PAG",
+  cubierta: 'Losa Cubierta RC 1%, Alfajía & Bajante 4"',
   otro: "Otra actividad BIM",
 };
 
@@ -85,7 +85,7 @@ const ACTIVITY_LABELS_EN: Record<RoomActivityKey, string> = {
   panete: "Stucco & plaster render",
   pintura: "Skim coat & architectural paint",
   carpinteria: "Doors & glazing millwork",
-  cubierta: "UPVC roofing & PAG purlins",
+  cubierta: 'RC Roof Slab 1%, Coping & 4" PVC Drain',
   otro: "Other BIM activity",
 };
 
@@ -109,9 +109,10 @@ const ROOM_MATERIAL_EN: Record<string, string> = {
   "Arena Lavada para Pañete": "Washed plastering sand",
   "Estuco Plástico Listo (Cuñetes)": "Ready-mix acrylic skim coat (5-gal pails)",
   "Pintura Vinilo Tipo 1 (Galones)": "Architectural latex paint Type 1 (gal)",
-  "Teja UPVC Termoacústica Trapezoidal e=2.5mm": "Trapezoidal thermo-acoustic UPVC roof panel t=2.5mm",
-  "Correa Perfil PAG C 150×50×2.0 mm": "Cold-formed PAG C-purlin 150×50×2.0 mm",
-  "Ganchos de Fijación con Golilla": "Roofing self-drilling screws w/ EPDM washer",
+  "Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)": "Ready-mix concrete f'c=3,500 PSI (Roof Slab L-2 t=4.7 in)",
+  "Mortero Afine Impermeabilizado Pendiente 1% (1:3)": "1% sloped waterproofed mortar screed (1:3)",
+  "Membrana Elastomérica Impermeabilizante Cubierta": "Elastomeric waterproof roof membrane",
+  'Tubería PVC Sanitaria Ø 4" (110 mm) NTC 1087': '4" (110 mm) Sanitary PVC Rainwater Pipe ASTM D2665',
 };
 
 function localizeRoomMaterialUnit(unit: string, lang: "es" | "en"): string {

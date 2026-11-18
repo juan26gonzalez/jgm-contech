@@ -18,14 +18,20 @@ export interface PorticoTakeoffSummary {
   balconyAreaM2: number;
   stairConcreteM3: number;
   superstructureConcreteM3: number;
+  roofSlabConcreteM3: number;
+  roofSlabAreaM2: number;
+  roofScreedConcreteM3: number;
+  roofDrainDeckAreaM2: number;
+  totalConcreteM3: number;
+  parapetMasonryM2: number;
+  wallsMainMasonryM2: number;
   masonryAreaM2: number;
   plasterAreaM2: number;
   flooringAreaM2: number;
   ceilingAreaM2: number;
-  roofUpvcAreaM2: number;
-  purlinCount: number;
-  purlinLengthMl: number;
-  purlinSteelKg: number;
+  alfajiaLengthMl: number;
+  downspoutLengthMl: number;
+  rebarSteelKg: number;
   railingLengthMl: number;
   doorsCount: number;
   windowsCount: number;
@@ -70,7 +76,7 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
   const groundSlabAreaM2 = (gs.x1 - gs.x0) * (gs.z1 - gs.z0);
   const groundSlabConcreteM3 = groundSlabAreaM2 * gs.thickness;
 
-  // 5. Columns C1..C9 (from gradeBeamTop -0.10 up to roof eave/ridge, minus VE/VCU overlap counted in beams)
+  // 5. Columns C1..C9 (from gradeBeamTop -0.10 uniformly up to roofDeck +5.80)
   let colNetLen = 0;
   for (const c of s.columns.items) {
     colNetLen += Math.max(0, c.top - s.levels.gradeBeamTop);
@@ -86,19 +92,14 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
   }
   const floorBeamConcreteM3 = veNetLen * veSpec.b * veSpec.h;
 
-  // 7. Roof beams VCU + sloped rafters VI (25x30 cm)
+  // 7. Orthogonal roof tie-beams VCU (25x30 cm on X axes A,B,C & Z axes 1,2,3)
   const vcuSpec = s.beamTypes.VCU;
   let vcuNetLen = 0;
   for (const bm of s.beams.filter((b) => b.type === "VCU")) {
     const ded = bm.supports.length * s.columns.b;
     vcuNetLen += Math.max(0, Math.abs(bm.to - bm.from) - ded);
   }
-  const slopeRad = Math.atan2(s.levels.ridge - s.levels.eave, Math.abs(s.grid.z[0].pos));
-  const cosSlope = Math.cos(slopeRad);
-  const rafterHorizLen = Math.abs(s.rafters.frontEnd - s.rafters.rearEnd);
-  const rafterSlopeLen = rafterHorizLen / cosSlope;
-  const raftersLen = s.rafters.lines.length * (rafterSlopeLen - 0.35);
-  const roofBeamConcreteM3 = (vcuNetLen + raftersLen) * vcuSpec.b * vcuSpec.h;
+  const roofBeamConcreteM3 = vcuNetLen * vcuSpec.b * vcuSpec.h;
 
   // 8. Floor 2 Slab L-1 (minus stair void) + Front Balcony LV-1
   const fs = s.slabs.floorSlab;
@@ -108,7 +109,17 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
   const balconyAreaM2 = (bal.x1 - bal.x0) * (bal.z1 - bal.z0);
   const floorSlabConcreteM3 = (floorSlabAreaM2 + balconyAreaM2) * fs.thickness;
 
-  // 9. Concrete Stair ESC-1 (2 waist flights + 18 steps + mid landing)
+  // 9. Roof Solid RC Slab L-2 (8.30 x 7.30 m x 0.12 m, no opening) + 1% drainage screed topping
+  const rs = s.slabs.roofSlab;
+  const roofSlabAreaM2 = (rs.x1 - rs.x0) * (rs.z1 - rs.z0);
+  const roofSlabConcreteM3 = roofSlabAreaM2 * rs.thickness;
+
+  const rf = s.roof;
+  const roofDrainDeckAreaM2 = (rf.deckX1 - rf.deckX0) * (rf.deckZ1 - rf.deckZ0);
+  const avgScreedThickness = (rf.screedMin + rf.screedMax) / 2;
+  const roofScreedConcreteM3 = roofDrainDeckAreaM2 * avgScreedThickness;
+
+  // 10. Concrete Stair ESC-1 (2 waist flights + 18 steps + mid landing)
   const st = s.stair;
   const flightHoriz = Math.abs(st.flight1.x1 - st.flight1.x0);
   const flightRise = st.flight1.y1 - st.flight1.y0;
@@ -119,7 +130,7 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
   const landingVol = landingArea * (st.waist + 0.03);
   const stairConcreteM3 = waistVol + stepTrianglesVol + landingVol;
 
-  // 10. CMU No. 12 Masonry Walls (net of windows/doors) + two-sided plaster & paint
+  // 11. CMU No. 12 Masonry Walls (N1 & N2 net + upper 1.00m Parapet) + two-sided plaster & paint
   let wallGrossArea = 0;
   let openingsArea = 0;
   let doorsCount = 0;
@@ -133,55 +144,63 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
         (Math.abs(w.x1 - w.x2) < 0.01 && Math.abs(w.x1) < 0.01));
     const hBase = w.level === 1 ? (underVeBeam ? 2.6 : 2.88) : 2.5;
     wallGrossArea += len * hBase;
-    if ((w as { gable?: boolean }).gable) {
-      // Triangular/trapezoidal gable masonry closure above +5.50 eave line up to soffit (+6.30)
-      const dz = Math.abs(w.z2 - w.z1);
-      wallGrossArea += 0.5 * dz * 0.72;
-    }
     for (const op of w.openings) {
       openingsArea += op.w * (op.head - op.sill);
       if (op.kind === "window") windowsCount++;
       else doorsCount++;
     }
   }
-  const masonryAreaM2 = Math.max(0, wallGrossArea - openingsArea);
+  const wallsMainMasonryM2 = Math.max(0, wallGrossArea - openingsArea);
+
+  let parapetMasonryM2 = 0;
+  let alfajiaLengthMl = 0;
+  for (const p of s.parapets) {
+    const pLen = Math.hypot(p.x2 - p.x1, p.z2 - p.z1);
+    parapetMasonryM2 += pLen * p.height;
+    alfajiaLengthMl += pLen;
+  }
+  const masonryAreaM2 = wallsMainMasonryM2 + parapetMasonryM2;
   const plasterAreaM2 = masonryAreaM2 * 2;
 
-  // 11. Room porcelain floor areas (Level 1 + Level 2 interior + Balcony) + Drywall Ceiling N2
+  // 12. Room porcelain floor areas (Level 1 + Level 2 interior + Balcony) + Drywall Ceiling N2
   let flooringAreaM2 = 0;
   for (const r of s.rooms) {
     for (const [rx0, rz0, rx1, rz1] of r.rects) {
       flooringAreaM2 += Math.abs(rx1 - rx0) * Math.abs(rz1 - rz0);
     }
   }
-  const c = s.roof.ceiling;
+  const c = rf.ceiling;
   const ceilingAreaM2 = (c.x1 - c.x0) * (c.z1 - c.z0) - voidArea * 0.85;
 
-  // 12. Roof UPVC area & PAG C-purlins (150x50x2.0 mm, ~4.5 kg/ml)
-  const rf = s.roof;
-  const roofWidthX = rf.x1 - rf.x0;
-  const rearSlopeLen = Math.abs(rf.rearEdge) / cosSlope;
-  const frontSlopeLen = Math.abs(rf.frontEdge) / cosSlope;
-  const roofUpvcAreaM2 = roofWidthX * (rearSlopeLen + frontSlopeLen);
+  // 13. 4" Sanitary PVC Rainwater Downspout (horizontal wall penetration + vertical drop + grade shoe)
+  const dr = rf.drain;
+  const horizCollectorLen = Math.abs(dr.pipeX - dr.sumpX) + 0.12;
+  const verticalDropLen = Math.abs(dr.topY - dr.bottomY);
+  const downspoutLengthMl = horizCollectorLen + verticalDropLen + 0.45; // incl. 45deg discharge bend & fittings
 
-  const rearPurlins = Math.ceil(rearSlopeLen / rf.purlinMaxSpacing) + 1;
-  const frontPurlins = Math.ceil(frontSlopeLen / rf.purlinMaxSpacing) + 1;
-  // Share ridge purlin pair/assembly cleanly
-  const purlinCount = rearPurlins + frontPurlins;
-  const purlinLengthMl = purlinCount * roofWidthX;
-  const purlinSteelKg = purlinLengthMl * 4.5;
+  // 14. Estimated Grade 60 PDR-60 reinforcing steel across foundations, columns, VE/VCU beams, L-1, L-2, LV-1, ESC-1
+  const baseFrameSteelKg = 5420;
+  const roofSlabSteelKg = roofSlabAreaM2 * 11.2; // bidirectional #3 @ 0.20 + top neg bastones
+  const roofExtraBeamsKg = (3 * 7.3 - 2.7) * 14.5; // VCU-1..3 Z beams net of ridge col delta
+  const rebarSteelKg = Math.round(baseFrameSteelKg + roofSlabSteelKg + roofExtraBeamsKg);
 
-  // 13. Guardrails
+  // 15. Guardrails
   let railingLengthMl = 0;
   for (const rl of s.railings) {
     railingLengthMl += Math.hypot(rl.x2 - rl.x1, rl.z2 - rl.z1);
   }
 
+  const foundationConcreteM3 = footingConcreteM3 + pedestalConcreteM3 + gradeBeamConcreteM3;
+  const superstructureConcreteM3 =
+    columnConcreteM3 + floorBeamConcreteM3 + roofBeamConcreteM3 + floorSlabConcreteM3 + stairConcreteM3;
+  const totalConcreteM3 =
+    foundationConcreteM3 + groundSlabConcreteM3 + superstructureConcreteM3 + roofSlabConcreteM3;
+
   return {
     footingConcreteM3: round2(footingConcreteM3),
     pedestalConcreteM3: round2(pedestalConcreteM3),
     gradeBeamConcreteM3: round2(gradeBeamConcreteM3),
-    foundationConcreteM3: round2(footingConcreteM3 + pedestalConcreteM3 + gradeBeamConcreteM3),
+    foundationConcreteM3: round2(foundationConcreteM3),
     groundSlabConcreteM3: round2(groundSlabConcreteM3),
     groundSlabAreaM2: round2(groundSlabAreaM2),
     columnConcreteM3: round2(columnConcreteM3),
@@ -191,17 +210,21 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
     floorSlabAreaM2: round2(floorSlabAreaM2),
     balconyAreaM2: round2(balconyAreaM2),
     stairConcreteM3: round2(stairConcreteM3),
-    superstructureConcreteM3: round2(
-      columnConcreteM3 + floorBeamConcreteM3 + roofBeamConcreteM3 + floorSlabConcreteM3 + stairConcreteM3
-    ),
+    superstructureConcreteM3: round2(superstructureConcreteM3),
+    roofSlabConcreteM3: round2(roofSlabConcreteM3),
+    roofSlabAreaM2: round2(roofSlabAreaM2),
+    roofScreedConcreteM3: round2(roofScreedConcreteM3),
+    roofDrainDeckAreaM2: round2(roofDrainDeckAreaM2),
+    totalConcreteM3: round2(totalConcreteM3),
+    parapetMasonryM2: round2(parapetMasonryM2),
+    wallsMainMasonryM2: round2(wallsMainMasonryM2),
     masonryAreaM2: round2(masonryAreaM2),
     plasterAreaM2: round2(plasterAreaM2),
     flooringAreaM2: round2(flooringAreaM2),
     ceilingAreaM2: round2(ceilingAreaM2),
-    roofUpvcAreaM2: round2(roofUpvcAreaM2),
-    purlinCount,
-    purlinLengthMl: round2(purlinLengthMl),
-    purlinSteelKg: round2(purlinSteelKg),
+    alfajiaLengthMl: round2(alfajiaLengthMl),
+    downspoutLengthMl: round2(downspoutLengthMl),
+    rebarSteelKg,
     railingLengthMl: round2(railingLengthMl),
     doorsCount,
     windowsCount,

@@ -574,14 +574,13 @@ export function classifyRevitActivityAndRoom(
     activityLabel = "Estuco y pintura vinílica";
   } else if (
     combined.includes("cubierta") ||
-    combined.includes("upvc") ||
-    combined.includes("correa") ||
-    combined.includes("pag") ||
-    combined.includes("eternit") ||
-    combined.includes("teja")
+    combined.includes("pendiente") ||
+    combined.includes("impermeab") ||
+    combined.includes("alfaj") ||
+    combined.includes("bajante")
   ) {
     activityKey = "cubierta";
-    activityLabel = "Cubierta UPVC + correas perfil PAG";
+    activityLabel = 'Losa cubierta RC, pendiente 1%, alfajía & bajante 4"';
   } else if (combined.includes("ventana") || combined.includes("puerta")) {
     activityKey = "carpinteria";
     activityLabel = combined.includes("ventana") ? "Ventanería aluminio y vidrio" : "Puertas interiores y acceso";
@@ -843,9 +842,9 @@ export function computeMaterialsForRoomSelection(
         add("Pintura Vinilo Tipo 1 (Galones)", "Gal", q * 0.12);
         break;
       case "cubierta":
-        add("Teja UPVC Termoacústica Trapezoidal e=2.5mm", "m²", q * 1.08);
-        add("Correa Perfil PAG C 150×50×2.0 mm", "ml", q * 1.3);
-        add("Ganchos de Fijación con Golilla", "Und", q * 4.0);
+        add("Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", "m³", q * 0.12);
+        add("Mortero Afine Impermeabilizado Pendiente 1% (1:3)", "m³", q * 0.055);
+        add("Membrana Elastomérica Impermeabilizante Cubierta", "m²", q * 1.1);
         break;
       default:
         break;

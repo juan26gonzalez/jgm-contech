@@ -60,11 +60,32 @@ export function resolverMetaApu(
   const uNorm = normalizarUnidad(unidad);
   const hasAny = (keys: string[]) => keys.some((k) => actN.includes(k));
 
-  if (hasAny(["cubierta", "upvc", "correas", "pag", "eternit", "techo", "teja", "caballete"])) {
+  if (hasAny(["alfajia"])) {
+    return {
+      meta_dia: 20.0,
+      und: "ml/día",
+      cuadrilla: "Cuadrilla Mampostería & Remates: 1 Of + 1 Ayud",
+    };
+  }
+  if (hasAny(["bajante"]) || (hasAny(["pvc"]) && hasAny(["agua lluvia", "pluvial", "sanitari"]))) {
+    return {
+      meta_dia: 12.0,
+      und: "ml/día",
+      cuadrilla: "Cuadrilla Hidrosanitaria: 1 Oficial + 1 Ayud",
+    };
+  }
+  if (hasAny(["losa cubierta"]) || (hasAny(["cubierta"]) && hasAny(["concreto", "pendiente", "impermeab"]))) {
+    return {
+      meta_dia: 22.0,
+      und: "m²/día",
+      cuadrilla: "Cuadrilla Estructura & Impermeab.: 2 Of + 2 Ayud",
+    };
+  }
+  if (!hasAny(["bloque", "mamposteria", "levante", "muro"]) && hasAny(["cubierta", "upvc", "correas", "pag", "eternit", "techo", "teja", "caballete"])) {
     return {
       meta_dia: 20.0,
       und: "m²/día",
-      cuadrilla: "Cuadrilla Metálica: 2 Montadores",
+      cuadrilla: "Cuadrilla Envolvente & Cubierta: 2 Oficiales",
     };
   }
   if (hasAny(["ventana", "ventaneria", "window"]) && hasAny(["puerta", "door"])) {
@@ -598,11 +619,20 @@ export function calcularConsolidacionLocal(
       const cCalc = Number(r[campo] || 0);
       if (cCalc <= 0) continue;
       const actN = normalizarTexto(r.Actividad);
-      if (actN.includes("cubierta") || actN.includes("upvc") || actN.includes("pag") || actN.includes("eternit") || actN.includes("teja") || actN.includes("caballete")) {
-        list.push({ Actividad: r.Actividad, Insumo: "Teja UPVC Termoacústica Trapezoidal e=2.5mm", Unidad: "m²", Total_Teorico: cCalc * 1.08 });
-        list.push({ Actividad: r.Actividad, Insumo: "Correa Perfil PAG C 150×50×2.0 mm", Unidad: "ml", Total_Teorico: cCalc * 1.3 });
-        list.push({ Actividad: r.Actividad, Insumo: "Caballete Articulado Cubierta UPVC", Unidad: "ml", Total_Teorico: cCalc * 0.11 });
-        list.push({ Actividad: r.Actividad, Insumo: "Tornillos Autoperforantes con Arandela EPDM", Unidad: "Und", Total_Teorico: cCalc * 4.0 });
+      if (actN.includes("losa cubierta") || (actN.includes("cubierta") && (actN.includes("concreto") || actN.includes("pendiente") || actN.includes("impermeab")))) {
+        list.push({ Actividad: r.Actividad, Insumo: "Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", Unidad: "m³", Total_Teorico: cCalc * 0.12 });
+        list.push({ Actividad: r.Actividad, Insumo: "Acero Refuerzo PDR-60 (Losa Cubierta #3 @ 0.20)", Unidad: "kg", Total_Teorico: cCalc * 11.2 });
+        list.push({ Actividad: r.Actividad, Insumo: "Mortero Afine Impermeabilizado Pendiente 1% (1:3)", Unidad: "m³", Total_Teorico: cCalc * 0.055 });
+        list.push({ Actividad: r.Actividad, Insumo: "Membrana Elastomérica Impermeabilizante Cubierta", Unidad: "m²", Total_Teorico: cCalc * 1.1 });
+      } else if (actN.includes("alfaj")) {
+        list.push({ Actividad: r.Actividad, Insumo: "Concreto Premezclado f'c=21 MPa (Alfajía 23×7 cm)", Unidad: "m³", Total_Teorico: cCalc * 0.016 });
+        list.push({ Actividad: r.Actividad, Insumo: "Grafiles Ø 1/4\" Refuerzo Retracción Alfajía", Unidad: "kg", Total_Teorico: cCalc * 1.1 });
+      } else if (actN.includes("bajante") || (actN.includes("pvc") && (actN.includes("agua lluvia") || actN.includes("pluvial") || actN.includes("tragante")))) {
+        list.push({ Actividad: r.Actividad, Insumo: 'Tubería PVC Sanitaria Ø 4" (110 mm) NTC 1087', Unidad: "ml", Total_Teorico: cCalc * 1.05 });
+        list.push({ Actividad: r.Actividad, Insumo: 'Tragante de Esquina 4" + Codos PVC & Abrazaderas', Unidad: "Glb", Total_Teorico: 1 });
+      } else if (!actN.includes("bloque") && !actN.includes("mamposteria") && !actN.includes("muro") && (actN.includes("cubierta") || actN.includes("upvc") || actN.includes("pag") || actN.includes("eternit") || actN.includes("teja") || actN.includes("caballete"))) {
+        list.push({ Actividad: r.Actividad, Insumo: "Impermeabilización Elastomérica & Protección Cubierta", Unidad: "m²", Total_Teorico: cCalc * 1.08 });
+        list.push({ Actividad: r.Actividad, Insumo: "Mortero Impermeabilizado de Nivelación (1:3)", Unidad: "m³", Total_Teorico: cCalc * 0.04 });
       } else if (actN.includes("ventaneria") || actN.includes("ventana") || actN.includes("puerta") || actN.includes("baranda")) {
         if ((actN.includes("ventaneria") || actN.includes("ventana")) && actN.includes("puerta")) {
           const nWin = Math.round(cCalc * 0.57);

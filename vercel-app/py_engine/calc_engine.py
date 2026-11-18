@@ -191,11 +191,20 @@ def _calcular_insumos_desde_df(df_5d, campo_cant):
             continue
         act_n = normalizar_texto(str(r["Actividad"]))
         und = str(r.get("Unidad", "") or "").lower()
-        if any(k in act_n for k in ["cubierta", "upvc", "pag", "correa", "eternit", "teja", "caballete"]):
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Teja UPVC Termoacústica Trapezoidal e=2.5mm", "Unidad": "m²", "Total_Teorico": c_calc * 1.08})
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Correa Perfil PAG C 150×50×2.0 mm", "Unidad": "ml", "Total_Teorico": c_calc * 1.30})
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Caballete Articulado Cubierta UPVC", "Unidad": "ml", "Total_Teorico": c_calc * 0.11})
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Tornillos Autoperforantes con Arandela EPDM", "Unidad": "Und", "Total_Teorico": c_calc * 4.0})
+        if "losa cubierta" in act_n or ("cubierta" in act_n and any(k in act_n for k in ["concreto", "pendiente", "impermeab"])):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", "Unidad": "m³", "Total_Teorico": c_calc * 0.12})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Acero Refuerzo PDR-60 (Losa Cubierta #3 @ 0.20)", "Unidad": "kg", "Total_Teorico": c_calc * 11.2})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Mortero Afine Impermeabilizado Pendiente 1% (1:3)", "Unidad": "m³", "Total_Teorico": c_calc * 0.055})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Membrana Elastomérica Impermeabilizante Cubierta", "Unidad": "m²", "Total_Teorico": c_calc * 1.10})
+        elif "alfaj" in act_n:
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Concreto Premezclado f'c=21 MPa (Alfajía 23×7 cm)", "Unidad": "m³", "Total_Teorico": c_calc * 0.016})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Grafiles Ø 1/4" Refuerzo Retracción Alfajía', "Unidad": "kg", "Total_Teorico": c_calc * 1.10})
+        elif "bajante" in act_n or ("pvc" in act_n and any(k in act_n for k in ["agua lluvia", "pluvial", "tragante"])):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tubería PVC Sanitaria Ø 4" (110 mm) NTC 1087', "Unidad": "ml", "Total_Teorico": c_calc * 1.05})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tragante de Esquina 4" + Codos PVC & Abrazaderas', "Unidad": "Glb", "Total_Teorico": 1.0})
+        elif "bloque" not in act_n and "mamposteria" not in act_n and "muro" not in act_n and any(k in act_n for k in ["cubierta", "upvc", "pag", "correa", "eternit", "teja", "caballete"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Impermeabilización Elastomérica & Protección Cubierta", "Unidad": "m²", "Total_Teorico": c_calc * 1.08})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Mortero Impermeabilizado de Nivelación (1:3)", "Unidad": "m³", "Total_Teorico": c_calc * 0.04})
         elif any(k in act_n for k in ["ventaneria", "ventana", "puerta"]):
             if ("ventaneria" in act_n or "ventana" in act_n) and "puerta" in act_n:
                 n_win = int(round(c_calc * 0.57))
@@ -275,8 +284,14 @@ def _resolver_meta_apu(actividad, unidad=""):
     act_n = normalizar_texto(str(actividad or ""))
     u_norm = _normalizar_unidad(unidad)
 
-    if any(k in act_n for k in ["cubierta", "eternit", "techo", "teja", "caballete"]):
-        return {"meta_dia": 20.0, "und": "m²/día", "cuadrilla": "Cuadrilla Metálica: 2 Montadores"}
+    if "alfaj" in act_n:
+        return {"meta_dia": 20.0, "und": "ml/día", "cuadrilla": "Cuadrilla Mampostería & Remates: 1 Of + 1 Ayud"}
+    if "bajante" in act_n or ("pvc" in act_n and any(k in act_n for k in ["agua lluvia", "pluvial", "sanitari"])):
+        return {"meta_dia": 12.0, "und": "ml/día", "cuadrilla": "Cuadrilla Hidrosanitaria: 1 Oficial + 1 Ayud"}
+    if "losa cubierta" in act_n or ("cubierta" in act_n and any(k in act_n for k in ["concreto", "pendiente", "impermeab"])):
+        return {"meta_dia": 22.0, "und": "m²/día", "cuadrilla": "Cuadrilla Estructura & Impermeab.: 2 Of + 2 Ayud"}
+    if "bloque" not in act_n and "mamposteria" not in act_n and "muro" not in act_n and any(k in act_n for k in ["cubierta", "eternit", "techo", "teja", "caballete"]):
+        return {"meta_dia": 20.0, "und": "m²/día", "cuadrilla": "Cuadrilla Envolvente & Cubierta: 2 Oficiales"}
     if any(k in act_n for k in ["ventana", "ventaneria", "window"]) and any(k in act_n for k in ["puerta", "door"]):
         return {"meta_dia": 3.0, "und": "und/día", "cuadrilla": "Cuadrilla Carpintería & Aluminio: 1 Oficial + 1 Ayud"}
     if "puerta" in act_n or "door" in act_n:
@@ -670,9 +685,9 @@ def _classify_revit_row_py(raw_comment, raw_family=""):
     elif "estuco" in combined or "pintura" in combined:
         act_key = "pintura"
         act_label = "Estuco y pintura vinílica"
-    elif "cubierta" in combined or "upvc" in combined or "pag" in combined or "eternit" in combined or "teja" in combined:
+    elif "cubierta" in combined or "pendiente" in combined or "impermeab" in combined or "alfaj" in combined or "bajante" in combined:
         act_key = "cubierta"
-        act_label = "Cubierta UPVC + correas perfil PAG"
+        act_label = "Losa cubierta RC, pendiente 1%, alfajía & bajante 4\""
     elif "ventana" in combined or "puerta" in combined:
         act_key = "carpinteria"
         act_label = "Ventanería aluminio y vidrio" if "ventana" in combined else "Puertas interiores y acceso"

@@ -128,6 +128,11 @@ const EXACT_PHRASE_EN: Record<string, string> = {
   "Suministro e instalación de aislamiento termoacústico Frescasa Eco 2-1/2\" sobre cielo raso (todas las zonas)": "Frescasa Eco 2-1/2\" thermal-acoustic fiberglass insulation over ceiling",
   "Estuco plástico y pintura vinílica arquitectónica en muros": "Skim coat putty & Grade-1 architectural latex paint on walls",
   "Estuco plástico y pintura vinílica en muros": "Skim coat putty & Grade-1 architectural latex paint on walls",
+  "Losa cubierta concreto f'c=24 MPa e=12cm, pendiente 1% e impermeabilización": "Solid RC roof slab f'c=3,500 PSI t=4.7\", 1% drainage slope & waterproofing",
+  "Alfajía perimetral concreto f'c=21 MPa c/ cortagoteras": "Perimeter cast concrete coping w/ drip groove f'c=3,000 PSI",
+  "Bajante aguas lluvias tubería PVC sanitaria Ø 4\" y tragante de esquina": "4\" Sanitary PVC rainwater downspout & roof corner sump drain",
+  "Muros en mampostería bloque No. 12 (incl. antepecho cubierta h=1.00 m)": "CMU No. 12 masonry walls (incl. 3.3 ft roof parapet enclosure)",
+  "Concreto en columnas (+5.80m), vigas VE/VCU, losa L-1, balcón y escalera f'c=24 MPa": "RC columns (+19.0 ft), beams VE/VCU, slab L-1, balcony & stair f'c=3,500 PSI",
   "Montaje de cubierta UPVC termoacústica y correas perfil PAG C150": "Thermo-acoustic UPVC roof deck & cold-formed PAG C150 purlins",
   "Montaje de cubierta termoacústica UPVC + correas perfil PAG": "Thermo-acoustic UPVC roof panels + PAG C150 purlins",
   "Montaje de cubierta termoacústica en teja Eternit": "Thermo-acoustic corrugated fiber-cement roof & ridge installation",
@@ -165,6 +170,7 @@ const EXACT_PHRASE_EN: Record<string, string> = {
   "Niveles 1 y 2": "Levels 1 & 2",
   "Nivel 2 + Balcón": "Level 2 + Balcony",
   "Nivel 1": "Level 1",
+  "Cubierta Losa RC + Antepecho": "RC Sloped Roof & Parapet",
   "Cubierta UPVC / PAG": "UPVC Roof / PAG Purlins",
   "Zapatas, pedestales y vigas de cimentación": "Footings, pedestals & grade beams",
   "Columnas, vigas aéreas y losa entrepiso": "RC columns, elevated beams & 2-way slab",
@@ -242,6 +248,11 @@ const MATERIAL_EN_MAP: Array<[RegExp, string]> = [
   [/Estuco\s+Pl[áa]stico\s*\+\s*Pintura\s+Vin[íi]lica\s+Tipo\s+1/i, "Interior Skim Coat + Grade-1 Architectural Latex Paint"],
   [/Pintura\s+Vin[íi]l(?:o|ica)\s+Tipo\s+1\s*\(Cuñetes.*/i, "Grade-1 Architectural Latex Paint (5-Gal Pails)"],
   [/Pintura\s+Vin[íi]l(?:o|ica)\s+Tipo\s+1.*/i, "Grade-1 Architectural Latex Paint (Gallons)"],
+  [/Mortero\s+Afine\s+Impermeabilizado.*/i, "1% Sloped Waterproofed Drainage Mortar Screed (1:3)"],
+  [/Membrana\s+Elastom[ée]rica\s+Impermeabilizante.*/i, "Elastomeric Roof Waterproofing Membrane (+10% lap)"],
+  [/Tuber[íi]a\s+PVC\s+Sanitaria.*/i, "4\" (110 mm) Sanitary PVC Rainwater Pipe ASTM D2665"],
+  [/Tragante\s+de\s+Esquina.*/i, "4\" Corner Roof Drain Sump + 90°/45° PVC Elbows & Clamps"],
+  [/Grafiles\s+Ø\s*1\/4.*/i, "1/4\" Deformed Bar Reinforcement for Coping Cap"],
   [/Teja\s+UPVC\s+Termoac[úu]stica.*/i, "Trapezoidal Thermo-Acoustic UPVC Roof Panel (+8% lap & waste)"],
   [/Correa\s+Perfil\s+PAG.*/i, "Cold-Formed Galvanized PAG C-Purlin (150×50×2.0 mm)"],
   [/Caballete\s+Articulado\s+Cubierta\s+UPVC/i, "Moulded UPVC Roof Ridge Cap Flashing"],
@@ -429,6 +440,10 @@ function translateConstructionText(raw: string): string {
     .replace(/Nivel 1 - Corporativo/gi, "Level 1 - Corporate")
     .replace(/Cubierta y Envolvente/gi, "Roof & Building Envelope")
     .replace(/Cimentación/gi, "Foundations")
+    .replace(/Losa cubierta concreto f'c=24 MPa e=12cm,\s*pendiente 1%\s*e impermeabilizaci[óo]n/gi, "Solid RC roof slab f'c=3,500 PSI t=4.7\", 1% drainage slope & waterproofing")
+    .replace(/Alfaj[íi]a perimetral concreto f'c=21 MPa c\/\s*cortagoteras/gi, "Perimeter cast concrete coping w/ drip groove f'c=3,000 PSI")
+    .replace(/Bajante aguas lluvias tuber[íi]a PVC sanitaria Ø 4" y tragante de esquina/gi, "4\" Sanitary PVC rainwater downspout & roof corner sump drain")
+    .replace(/Muros en mamposter[íi]a bloque No\. 12 \(incl\. antepecho cubierta h=1\.00 m\)/gi, "CMU No. 12 masonry walls (incl. 3.3 ft roof parapet)")
     .replace(/Montaje de cubierta UPVC termoac[úu]stica(?:\s*y\s*correas|\s*\+\s*correas)?(?:\s*(?:en\s*)?perfil\s*PAG(?:\s*C150)?)?/gi, "Thermo-acoustic UPVC roof panels & cold-formed PAG C150 purlins")
     .replace(/Montaje de cubierta termoac[úu]stica(?:\s*\/\s*|\s+)Eternit(?:\s+y\s+caballetes)?/gi, "Thermo-acoustic fiber-cement roofing & ridge cap assembly")
     .replace(/cubierta termoac[úu]stica(?:\s+en\s+teja)?\s*Eternit(?:\s+y\s+caballetes)?/gi, "thermo-acoustic fiber-cement roofing & ridge caps")

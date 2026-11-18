@@ -15,7 +15,6 @@ import {
   buildGradeBeamRebarPackage,
   buildPedestalRebarPackage,
   buildSlabTempMeshPackage,
-  buildSlopedRafterRebarPackage,
   buildStairRebarPackage,
   buildUpperBeamRebarPackage,
   RebarPackageResult,
@@ -26,8 +25,9 @@ type BarSize = "#3" | "#4" | "#5";
 
 /**
  * Builds a complete, parametric 2-storey RC moment-frame digital twin (`PORTICO-2N`)
- * with spread footings, pedestals, columns, elevated beams, solid 2-way slabs with stair void,
- * cantilever front balcony, U-staircase, CMU No. 12 block walls, PAG C-purlins & UPVC roof.
+ * with spread footings, pedestals, columns, elevated beams, solid 2-way slabs (L-1 & L-2 roof deck),
+ * 1% roof slope w/ 4" PVC rainwater downspout, 1.00 m CMU No. 12 parapet + alfajia coping,
+ * cantilever front balcony, U-staircase, and CMU No. 12 block walls.
  */
 export function buildPortico2nIfcModel(
   projectName = "Residencial Pórtico 2N",
@@ -148,7 +148,7 @@ export function buildPortico2nIfcModel(
   const lvl0 = L("Nivel 0 - Cimentación", "Level 0 - Foundations");
   const lvl1 = L("Nivel 1", "Level 1");
   const lvl2 = L("Nivel 2 + Balcón", "Level 2 + Balcony");
-  const lvlRoof = L("Cubierta UPVC / PAG", "UPVC / PAG Roof Level");
+  const lvlRoof = L("Cubierta Losa RC + Antepecho", "RC Roof Slab & Parapet");
 
   const matFound = isEn ? s.materials.concreteFoundation.en : s.materials.concreteFoundation.es;
   const matFrame = isEn ? s.materials.concreteFrame.en : s.materials.concreteFrame.es;
@@ -300,18 +300,17 @@ export function buildPortico2nIfcModel(
   });
 
   // =========================================================================
-  // 2. COLUMNS (C1..C9, 30x30 cm), ELEVATED BEAMS (VE 30x40), ROOF BEAMS & RAFTERS
+  // 2. COLUMNS (C1..C9, 30x30 cm), ELEVATED BEAMS (VE 30x40), ORTHOGONAL ROOF BEAMS (VCU 25x30)
   // =========================================================================
   for (const col of s.columns.items) {
     const colH = col.top - s.levels.gradeBeamTop;
     const colCy = (col.top + s.levels.gradeBeamTop) / 2;
-    const isRidge = Math.abs(col.z) < 0.01;
 
     pushBox({
       ifcType: "IFCCOLUMN",
       name: L(
-        `Columna Estructural ${col.id} (30×30 cm • Eje ${col.gx}-${col.gz}${isRidge ? " Cumbrera" : ""})`,
-        `Structural Column ${col.id} (12"×12" • Grid ${col.gx}-${col.gz}${isRidge ? " Ridge" : ""})`
+        `Columna Estructural ${col.id} (30×30 cm • Eje ${col.gx}-${col.gz})`,
+        `Structural Column ${col.id} (12"×12" • Grid ${col.gx}-${col.gz})`
       ),
       objectType: "Column: Reinforced Concrete 30x30cm",
       comments: L("Columnas, vigas aéreas y losa entrepiso", "RC columns, beams & suspended slabs"),
@@ -332,7 +331,7 @@ export function buildPortico2nIfcModel(
         cx: col.x,
         cy: colCy,
         cz: col.z,
-        isRidge,
+        isRidge: false,
         longBar: s.columns.longBar as BarSize,
         loHeight: s.columns.lo,
         confSpacing: s.columns.tieSpacingLo,
@@ -391,138 +390,48 @@ export function buildPortico2nIfcModel(
     });
   }
 
-  // Roof Crown & Ridge Beams VCU-A, B, C (25x30 cm)
+  // Orthogonal Roof Tie-Beams VCU-A/B/C (X) & VCU-1/2/3 (Z) supporting L-2 at +5.80 m
   const vcuSpec = s.beamTypes.VCU;
   for (const bm of s.beams.filter((b) => b.type === "VCU")) {
     const span = Math.abs(bm.to - bm.from);
     const mid = (bm.from + bm.to) / 2;
+    const isX = bm.axis === "x";
     const cy = bm.top - vcuSpec.h / 2;
-    const isRidge = Math.abs(bm.line) < 0.01;
+    const cx = isX ? mid : bm.line;
+    const cz = isX ? bm.line : mid;
 
     pushBox({
       ifcType: "IFCBEAM",
       name: L(
-        `Viga Cubierta ${bm.id} (${isRidge ? "Cumbrera" : "Corona Alero"} 25×30 cm)`,
-        `Roof Beam ${bm.id} (${isRidge ? "Ridge" : "Eave Bond"} 25×30 cm)`
+        `Viga Cubierta ${bm.id} (Eje ${bm.gridLine} • 25×30 cm)`,
+        `Roof Tie-Beam ${bm.id} (Grid ${bm.gridLine} • 25×30 cm)`
       ),
-      objectType: "Beam: RC Roof Corona/Ridge Beam 25x30cm",
+      objectType: "Beam: RC Roof Framing Beam 25x30cm",
       comments: L("Columnas, vigas aéreas y losa entrepiso", "Structural roof tie-beams & frame"),
-      bimTags: "viga vigas cubierta corona cumbrera portico",
+      bimTags: "viga vigas cubierta portico corona",
       level: lvlRoof,
       material: matFrame,
       color: 0x94a3b8,
-      w: span,
-      h: vcuSpec.h,
-      d: vcuSpec.b,
-      x: mid,
+      w: isX ? span : vcuSpec.b - 0.004,
+      h: vcuSpec.h - (isX ? 0 : 0.003),
+      d: isX ? vcuSpec.b : span,
+      x: cx,
       y: cy,
-      z: bm.line,
+      z: cz,
       rebarPkg: buildUpperBeamRebarPackage({
-        w: span,
+        w: isX ? span : vcuSpec.b,
         h: vcuSpec.h,
-        d: vcuSpec.b,
-        cx: mid,
+        d: isX ? vcuSpec.b : span,
+        cx,
         cy,
-        cz: bm.line,
-        axis: "x",
+        cz,
+        axis: bm.axis as "x" | "z",
         supports: bm.supports,
         topBars: vcuSpec.top as [number, BarSize],
         botBars: vcuSpec.bottom as [number, BarSize],
         loLen: vcuSpec.lo,
         confSpacing: vcuSpec.tieSpacingLo,
         midSpacing: vcuSpec.tieSpacingMid,
-      }),
-    });
-  }
-
-  // Sloped Portal Rafters VI-1, VI-2, VI-3 (along Z, rotating around X; front slope extends over Balcony to z=4.85)
-  const halfDepthSpan = Math.abs(s.grid.z[0].pos); // 3.50 m
-  const ridgeDrop = s.levels.ridge - s.levels.eave; // 0.80 m
-  const roofSlopeRad = Math.atan2(ridgeDrop, halfDepthSpan); // ~0.2247 rad (12.875 deg)
-  const cosSlope = Math.cos(roofSlopeRad);
-  const sinSlope = Math.sin(roofSlopeRad);
-
-  const rearLenHoriz = Math.abs(s.rafters.rearEnd); // 3.65 m
-  const rearSlopeLen = rearLenHoriz / cosSlope;
-  const frontLenHoriz = Math.abs(s.rafters.frontEnd); // 4.85 m (1.35 m balcony cantilever)
-  const frontSlopeLen = frontLenHoriz / cosSlope;
-
-  for (const rfLine of s.rafters.lines) {
-    // Rear slope rafter (rotX = -roofSlopeRad, going from z=-3.65 up to z=0)
-    const rearMidS = rearSlopeLen / 2;
-    const rearLineZ = -rearMidS * cosSlope;
-    const rearLineY = s.levels.ridge - rearMidS * sinSlope;
-    const rearCz = rearLineZ + (vcuSpec.h / 2) * sinSlope;
-    const rearCy = rearLineY - (vcuSpec.h / 2) * cosSlope;
-
-    pushBox({
-      ifcType: "IFCBEAM",
-      name: L(
-        `Viga Inclinada Cubierta Posterior ${rfLine.id}-P (Eje ${rfLine.gridLine})`,
-        `Sloped Roof Rafter Rear ${rfLine.id}-R (Grid ${rfLine.gridLine})`
-      ),
-      objectType: "Beam: Sloped RC Roof Rafter 25x30cm",
-      comments: L("Columnas, vigas aéreas y losa entrepiso", "Sloped RC portal rafters"),
-      bimTags: "viga vigas inclinada cubierta portico",
-      level: lvlRoof,
-      material: matFrame,
-      color: 0x94a3b8,
-      w: vcuSpec.b,
-      h: vcuSpec.h,
-      d: rearSlopeLen,
-      x: rfLine.x,
-      y: rearCy,
-      z: rearCz,
-      rotX: -roofSlopeRad,
-      rebarPkg: buildSlopedRafterRebarPackage({
-        w: vcuSpec.b,
-        h: vcuSpec.h,
-        d: rearSlopeLen,
-        cx: rfLine.x,
-        cy: rearCy,
-        cz: rearCz,
-        axis: "z",
-        rotX: -roofSlopeRad,
-        nodeCoords: [-rearSlopeLen / 2 + 0.2, rearSlopeLen / 2 - 0.12],
-      }),
-    });
-
-    // Front slope rafter w/ cantilever over balcony (rotX = +roofSlopeRad, z=0 -> z=4.85)
-    const frontMidS = frontSlopeLen / 2;
-    const frontLineZ = frontMidS * cosSlope;
-    const frontLineY = s.levels.ridge - frontMidS * sinSlope;
-    const frontCz = frontLineZ - (vcuSpec.h / 2) * sinSlope;
-    const frontCy = frontLineY - (vcuSpec.h / 2) * cosSlope;
-
-    pushBox({
-      ifcType: "IFCBEAM",
-      name: L(
-        `Viga Inclinada Frontal ${rfLine.id}-F c/ Voladizo Balcón (Eje ${rfLine.gridLine})`,
-        `Sloped Roof Rafter Front ${rfLine.id}-F w/ Balcony Overhang (Grid ${rfLine.gridLine})`
-      ),
-      objectType: "Beam: Sloped RC Roof Rafter 25x30cm + Cantilever",
-      comments: L("Columnas, vigas aéreas y losa entrepiso", "Sloped RC portal rafters"),
-      bimTags: "viga vigas inclinada cubierta balcon portico",
-      level: lvlRoof,
-      material: matFrame,
-      color: 0x94a3b8,
-      w: vcuSpec.b,
-      h: vcuSpec.h,
-      d: frontSlopeLen,
-      x: rfLine.x,
-      y: frontCy,
-      z: frontCz,
-      rotX: roofSlopeRad,
-      rebarPkg: buildSlopedRafterRebarPackage({
-        w: vcuSpec.b,
-        h: vcuSpec.h,
-        d: frontSlopeLen,
-        cx: rfLine.x,
-        cy: frontCy,
-        cz: frontCz,
-        axis: "z",
-        rotX: roofSlopeRad,
-        nodeCoords: [-frontSlopeLen / 2 + 0.15, -frontSlopeLen / 2 + 3.5 / cosSlope],
       }),
     });
   }
@@ -797,13 +706,8 @@ export function buildPortico2nIfcModel(
   }
 
   // =========================================================================
-  // 5. CMU BLOCK NO. 12 WALLS WITH EXACT WINDOW / DOOR CUTOUTS + GABLES
+  // 5. CMU BLOCK NO. 12 WALLS WITH EXACT WINDOW / DOOR CUTOUTS
   // =========================================================================
-  const halfRoofZ = Math.abs(s.grid.z[0].pos);
-  const soffitOffsetY = vcuSpec.h / cosSlope;
-  const getSoffitYWorld = (zVal: number) =>
-    s.levels.ridge - Math.abs(zVal) * (ridgeDrop / halfDepthSpan) - soffitOffsetY;
-
   for (const w of s.walls) {
     const dx = w.x2 - w.x1;
     const dz = w.z2 - w.z1;
@@ -811,7 +715,6 @@ export function buildPortico2nIfcModel(
     if (len < 0.05) continue;
     const angleY = -Math.atan2(dz, dx);
     const yBase = w.level === 1 ? s.levels.npt1 : s.levels.npt2;
-    const isGable = Boolean((w as { gable?: boolean }).gable);
     const underVeBeam =
       w.level === 1 &&
       (w.ext ||
@@ -822,16 +725,8 @@ export function buildPortico2nIfcModel(
     const wallShape = new THREE.Shape();
     wallShape.moveTo(0, 0);
     wallShape.lineTo(len, 0);
-
-    if (isGable) {
-      const hRight = Math.max(baseHeight, getSoffitYWorld(w.z2) - yBase);
-      const hLeft = Math.max(baseHeight, getSoffitYWorld(w.z1) - yBase);
-      wallShape.lineTo(len, hRight);
-      wallShape.lineTo(0, hLeft);
-    } else {
-      wallShape.lineTo(len, baseHeight);
-      wallShape.lineTo(0, baseHeight);
-    }
+    wallShape.lineTo(len, baseHeight);
+    wallShape.lineTo(0, baseHeight);
     wallShape.closePath();
 
     for (const op of w.openings) {
@@ -984,166 +879,246 @@ export function buildPortico2nIfcModel(
   });
 
   // =========================================================================
-  // 7. COLD-FORMED STEEL PAG C-PURLINS (150x50x2.0mm) & RIBBED UPVC ROOFING
+  // 7. SOLID RC ROOF SLAB (L-2), 1% SLOPED WATERPROOF SCREED, 1.00m PARAPET,
+  //    PERIMETER CONCRETE ALFAJÍA & 4" SANITARY PVC RAINWATER DOWNSPOUT
   // =========================================================================
   const rf = s.roof;
-  const roofWidth = rf.x1 - rf.x0; // 9.10 m
-  const rearRoofSlopeLen = Math.abs(rf.rearEdge) / cosSlope;
-  const frontRoofSlopeLen = Math.abs(rf.frontEdge) / cosSlope;
+  const rSlab = s.slabs.roofSlab;
 
-  // Build C-channel purlin ExtrudeGeometry extending along X in [rf.x0, rf.x1]
-  // Cross-section in YZ plane: extruded along X
-  const buildPagPurlinGeom = (zWorld: number, isFront: boolean) => {
-    const hP = rf.purlinDepth; // 0.15 m
-    const bP = rf.purlinFlange; // 0.05 m
-    const tVis = 0.008; // Crisp web thickness visible cleanly in WebGL
-    const lip = 0.018;
-
-    const cShape = new THREE.Shape();
-    // Draw C-profile in local (z2d, y2d): bottom at y=0, top at y=hP
-    cShape.moveTo(bP / 2 - tVis, lip);
-    cShape.lineTo(bP / 2, lip);
-    cShape.lineTo(bP / 2, 0);
-    cShape.lineTo(-bP / 2, 0);
-    cShape.lineTo(-bP / 2, hP);
-    cShape.lineTo(bP / 2, hP);
-    cShape.lineTo(bP / 2, hP - lip);
-    cShape.lineTo(bP / 2 - tVis, hP - lip);
-    cShape.lineTo(bP / 2 - tVis, hP - tVis);
-    cShape.lineTo(-bP / 2 + tVis, hP - tVis);
-    cShape.lineTo(-bP / 2 + tVis, tVis);
-    cShape.lineTo(bP / 2 - tVis, tVis);
-    cShape.closePath();
-
-    const g = new THREE.ExtrudeGeometry(cShape, { depth: roofWidth, bevelEnabled: false });
-    // rotateY(-PI/2) puts 2D X->+Z, 2D Y->+Y, extrude +Z -> -X; shift to span [-roofWidth/2, +roofWidth/2]
-    g.rotateY(-Math.PI / 2);
-    g.translate(rf.x1, 0, 0);
-    g.rotateX(isFront ? roofSlopeRad : -roofSlopeRad);
-    const yOnRoofTop = s.levels.ridge - Math.abs(zWorld) * (ridgeDrop / halfRoofZ);
-    g.translate(0, yOnRoofTop, zWorld);
-    return g;
-  };
-
-  // Sample purlins evenly along rear and front slope lengths
-  const placeSlopePurlins = (
-    maxAbsZ: number,
-    slopeLen: number,
-    isFront: boolean,
-    prefix: string
-  ) => {
-    const count = Math.ceil(slopeLen / rf.purlinMaxSpacing) + 1;
-    const zMinAbs = 0.16;
-    const zMaxAbs = maxAbsZ - 0.14;
-    for (let i = 0; i < count; i++) {
-      const t = i / (count - 1);
-      const zAbs = zMinAbs + t * (zMaxAbs - zMinAbs);
-      const zWorld = isFront ? zAbs : -zAbs;
-      pushGeometry({
-        ifcType: "IFCMEMBER",
-        name: L(
-          `Correa Perfil PAG ${prefix}-${i + 1} (C 150×50×2.0 mm • L=9.10 m)`,
-          `Cold-Formed PAG C-Purlin ${prefix}-${i + 1} (150×50×2.0 mm • L=29.9 ft)`
-        ),
-        objectType: "Structural Framing: PAG C-Profile 150x50x2.0mm",
-        comments: L("Cubierta UPVC termoacústica y correas perfil PAG", "PAG C-purlins & UPVC roof"),
-        bimTags: "correa correas perfil pag metalica cubierta techo",
-        level: lvlRoof,
-        material: isEn ? s.materials.purlin.en : s.materials.purlin.es,
-        color: 0x334155,
-        geom: buildPagPurlinGeom(zWorld, isFront),
-      });
-    }
-  };
-
-  placeSlopePurlins(Math.abs(rf.rearEdge), rearRoofSlopeLen, false, "CP-P");
-  placeSlopePurlins(Math.abs(rf.frontEdge), frontRoofSlopeLen, true, "CP-F");
-
-  // Ribbed Trapezoidal UPVC Roof Sheets seated cleanly on top of PAG purlins (yBase = purlinDepth = 0.15)
-  const buildUpvcRibbedRoofGeom = (slopeLen: number, isFront: boolean) => {
-    const pitch = rf.sheetRibPitch; // 0.25 m
-    const ribH = rf.sheetRibHeight; // 0.035 m
-    const sheetT = 0.008; // visual sheet thickness
-    const halfX = roofWidth / 2;
-
-    const rShape = new THREE.Shape();
-    // Upper surface from x = -halfX to +halfX along trapezoidal waves
-    const ribs = Math.floor(roofWidth / pitch);
-    rShape.moveTo(-halfX, sheetT);
-    for (let i = 0; i < ribs; i++) {
-      const bx = -halfX + i * pitch;
-      rShape.lineTo(bx + pitch * 0.22, sheetT);
-      rShape.lineTo(bx + pitch * 0.34, sheetT + ribH);
-      rShape.lineTo(bx + pitch * 0.66, sheetT + ribH);
-      rShape.lineTo(bx + pitch * 0.78, sheetT);
-      rShape.lineTo(bx + pitch, sheetT);
-    }
-    rShape.lineTo(halfX, sheetT);
-    rShape.lineTo(halfX, 0);
-    rShape.lineTo(-halfX, 0);
-    rShape.closePath();
-
-    const g = new THREE.ExtrudeGeometry(rShape, { depth: slopeLen, bevelEnabled: false });
-    // Extrude sits at z in [0, slopeLen], x in [-halfX, +halfX], y in [0, sheetT+ribH]
-    if (isFront) {
-      // Shift vertically by purlinDepth normal (+0.155) along +Y before rotateX
-      g.translate(0, rf.purlinDepth + 0.004, 0);
-      g.rotateX(roofSlopeRad);
-      g.translate(0, s.levels.ridge, 0);
-    } else {
-      g.translate(0, rf.purlinDepth + 0.004, -slopeLen);
-      g.rotateX(-roofSlopeRad);
-      g.translate(0, s.levels.ridge, 0);
-    }
-    return g;
-  };
-
-  pushGeometry({
-    ifcType: "IFCROOF",
-    name: L("Cubierta Teja UPVC Termoacústica — Faldón Posterior", "Thermo-Acoustic UPVC Roof Sheet — Rear Slope"),
-    objectType: "Roof: Trapezoidal UPVC Thermo-Acoustic Panel e=2.5mm",
-    comments: L("Cubierta UPVC termoacústica y correas perfil PAG", "Thermo-acoustic UPVC roof panels"),
-    bimTags: "cubierta teja upvc termoacustica techo",
-    level: lvlRoof,
-    material: isEn ? s.materials.roofSheet.en : s.materials.roofSheet.es,
-    color: 0xf1f5f9,
-    geom: buildUpvcRibbedRoofGeom(rearRoofSlopeLen, false),
-  });
-
-  pushGeometry({
-    ifcType: "IFCROOF",
-    name: L("Cubierta Teja UPVC Termoacústica — Faldón Frontal c/ Alero Balcón", "Thermo-Acoustic UPVC Roof Sheet — Front Slope + Balcony Overhang"),
-    objectType: "Roof: Trapezoidal UPVC Thermo-Acoustic Panel e=2.5mm",
-    comments: L("Cubierta UPVC termoacústica y correas perfil PAG", "Thermo-acoustic UPVC roof panels over balcony"),
-    bimTags: "cubierta teja upvc termoacustica techo balcon",
-    level: lvlRoof,
-    material: isEn ? s.materials.roofSheet.en : s.materials.roofSheet.es,
-    color: 0xf1f5f9,
-    geom: buildUpvcRibbedRoofGeom(frontRoofSlopeLen, true),
-  });
-
-  // UPVC Ridge Flashing Cap sealing the peak
-  const ridgeCapY = s.levels.ridge + (rf.purlinDepth + rf.sheetRibHeight + 0.025) / cosSlope;
+  // 7A. Solid Reinforced Concrete Roof Slab L-2 (8.30 x 7.30 x 0.12 m, two-way #3 @ 0.20)
   pushBox({
-    ifcType: "IFCROOF",
-    name: L("Caballete Cumbrera UPVC Termoacústica", "UPVC Thermo-Acoustic Ridge Cap"),
-    objectType: "Roof: Moulded UPVC Ridge Flashing",
-    comments: L("Cubierta UPVC termoacústica y correas perfil PAG", "UPVC ridge cap flashing"),
-    bimTags: "cubierta teja upvc caballete cumbrera",
+    ifcType: "IFCSLAB",
+    name: L(
+      "Losa Maciza Cubierta L-2 (f'c=24 MPa • e=12 cm • +5.80 m)",
+      "Solid RC Roof Slab L-2 (f'c=3,500 psi • t=4.7\" • +19.0 ft)"
+    ),
+    objectType: "Slab: Two-Way Solid Reinforced Concrete Roof e=12cm",
+    comments: L(
+      "Losa cubierta concreto f'c=24 MPa e=12cm, pendiente 1% e impermeabilización",
+      "Solid RC flat roof slab w/ 1% drainage slope"
+    ),
+    bimTags: "losa losas cubierta l-2 l2 maciza concreto techo",
     level: lvlRoof,
-    material: isEn ? "Moulded UPVC Ridge Cap" : "Caballete Articulado UPVC",
-    color: 0x0f766e,
-    w: roofWidth,
-    h: 0.05,
-    d: 0.42,
-    x: 0,
-    y: ridgeCapY,
-    z: 0,
+    material: matFrame,
+    color: 0xaab6c5,
+    w: rSlab.x1 - rSlab.x0,
+    h: rSlab.thickness,
+    d: rSlab.z1 - rSlab.z0,
+    x: (rSlab.x0 + rSlab.x1) / 2,
+    y: rSlab.top - rSlab.thickness / 2,
+    z: (rSlab.z0 + rSlab.z1) / 2,
+    rebarPkg: buildFloorSlabBidirectionalRebarPackage({
+      x0: rSlab.x0,
+      x1: rSlab.x1,
+      z0: rSlab.z0,
+      z1: rSlab.z1,
+      topY: rSlab.top,
+      thickness: rSlab.thickness,
+      voidRect: null,
+      bottomSpacing: rSlab.bottomSpacing,
+      topSpacing: rSlab.topSpacing,
+      topLenInterior: rSlab.topLengthInterior,
+      topLenEdge: rSlab.topLengthEdge,
+      isRoofSlab: true,
+    }),
   });
+
+  // 7B. 1% Drainage Slope Mortar Screed + Elastomeric Waterproof Membrane
+  // Front edge (Eje C, z=+3.50): +0.09 m above L-2 (+5.89 m); Rear Eje A (z=-3.50): +0.02 m (+5.82 m) => exact 1.00% fall (7cm / 7.00m)
+  const screedShape = new THREE.Shape();
+  const deckHalfZ = (rf.deckZ1 - rf.deckZ0) / 2; // 3.50 m
+  screedShape.moveTo(-deckHalfZ, 0);
+  screedShape.lineTo(deckHalfZ, 0);
+  screedShape.lineTo(deckHalfZ, rf.screedMax);
+  screedShape.lineTo(-deckHalfZ, rf.screedMin);
+  screedShape.closePath();
+
+  const deckWidthX = rf.deckX1 - rf.deckX0; // 8.00 m
+  const screedGeom = new THREE.ExtrudeGeometry(screedShape, {
+    depth: deckWidthX,
+    bevelEnabled: false,
+  });
+  // After rotateY(-PI/2): local shape X (+Z in Three) -> +Z, shape Y -> +Y, depth (+Z) -> -X
+  screedGeom.rotateY(-Math.PI / 2);
+  screedGeom.translate(rf.deckX1, rSlab.top, (rf.deckZ0 + rf.deckZ1) / 2);
+
+  pushGeometry({
+    ifcType: "IFCROOF",
+    name: L(
+      "Mortero Afine Pendiente 1% + Impermeabilización Elastomérica Cubierta",
+      "1% Sloped Drainage Screed + Elastomeric Roof Waterproofing"
+    ),
+    objectType: "Roof: 1% Sloped Mortar Screed & Acrylic Waterproof Membrane",
+    comments: L(
+      "Losa cubierta concreto f'c=24 MPa e=12cm, pendiente 1% e impermeabilización",
+      "1% drainage slope toward rear 4\" PVC drain sump"
+    ),
+    bimTags: "cubierta mortero pendiente 1% impermeabilizacion afine desague agua lluvia",
+    level: lvlRoof,
+    material: isEn ? s.materials.waterproof.en : s.materials.waterproof.es,
+    color: 0x64748b,
+    geom: screedGeom,
+  });
+
+  // 7C. 1.00 m Upper CMU Bloque N° 12 Parapet Walls (PAR-A, PAR-C, PAR-1, PAR-3) + Perimeter Alfajía Coping
+  const alfW = rf.alfajiaWidth; // 0.23 m (4 cm drip overhang past both 0.15 m faces)
+  const alfH = rf.alfajiaHeight; // 0.07 m
+  const matAlf = isEn ? s.materials.alfajia.en : s.materials.alfajia.es;
+
+  const makeAlfajiaGeom = (len: number, isX: boolean) => {
+    const hw = alfW / 2;
+    const crownH = alfH;
+    const edgeH = alfH - 0.015; // Wash slope on top + drip lip projection
+    const shape = new THREE.Shape();
+    shape.moveTo(-hw, 0);
+    shape.lineTo(hw, 0);
+    shape.lineTo(hw, edgeH);
+    shape.lineTo(0, crownH);
+    shape.lineTo(-hw, edgeH);
+    shape.closePath();
+
+    const g = new THREE.ExtrudeGeometry(shape, { depth: len, bevelEnabled: false });
+    if (isX) {
+      g.rotateY(-Math.PI / 2);
+      g.translate(len / 2, 0, 0);
+    } else {
+      g.translate(0, 0, -len / 2);
+    }
+    return g;
+  };
+
+  for (const par of s.parapets) {
+    const dx = par.x2 - par.x1;
+    const dz = par.z2 - par.z1;
+    const len = Math.hypot(dx, dz);
+    const isX = Math.abs(dx) >= Math.abs(dz);
+    const cx = (par.x1 + par.x2) / 2;
+    const cz = (par.z1 + par.z2) / 2;
+    const parCy = s.levels.roofDeck + par.height / 2;
+
+    pushBox({
+      ifcType: "IFCWALL",
+      name: L(
+        `Antepecho Cubierta ${par.id} — ${par.sideEs} (Bloque N°12 • h=1.00 m)`,
+        `Roof Parapet ${par.id} — ${par.sideEn} (CMU No.12 • h=3.3 ft)`
+      ),
+      objectType: "Wall: CMU No. 12 Roof Parapet h=1.00m",
+      comments: L("Muros mampostería bloque No. 12", "1.00 m CMU No. 12 roof parapet wall"),
+      bimTags: "muro muros mamposteria bloque 12 antepecho parapeto cubierta",
+      level: lvlRoof,
+      material: matBlock,
+      color: 0xe2e8f0,
+      w: isX ? len : par.thickness,
+      h: par.height,
+      d: isX ? par.thickness : len,
+      x: cx,
+      y: parCy,
+      z: cz,
+    });
+
+    const alfId = par.id.replace("PAR-", "ALF-");
+    const alfLen = isX
+      ? len + rf.alfajiaDripOverhang * 2
+      : Math.max(0.2, len - rf.alfajiaDripOverhang * 2);
+    const alfGeom = makeAlfajiaGeom(alfLen, isX);
+    alfGeom.translate(cx, s.levels.parapetTop, cz);
+
+    pushGeometry({
+      ifcType: "IFCCOVERING",
+      name: L(
+        `Alfajía Perimetral Concreto ${alfId} (23×7 cm c/ Cortagoteras)`,
+        `Concrete Parapet Coping ${alfId} (9"×2.8" w/ Drip Groove)`
+      ),
+      objectType: "Coping: Cast Concrete Alfajía w/ Drip Edge",
+      comments: L(
+        "Alfajía perimetral concreto c/ cortagoteras sobre antepecho cubierta",
+        "Cast concrete coping cap on parapet wall"
+      ),
+      bimTags: "alfajia alfajía cortagoteras remate parapeto antepecho cubierta",
+      level: lvlRoof,
+      material: matAlf,
+      color: 0xf8fafc,
+      geom: alfGeom,
+    });
+  }
+
+  // 7D. Corner Roof Sump (Tragante Ø 4") & 4" Sanitary PVC Rainwater Downspout BLL-1 (Eje A/3)
+  const dr = rf.drain;
+  const pipeRadius = dr.diameterM / 2; // 0.055 m (4" nominal PVC = 110 mm)
+  const pipeParts: THREE.BufferGeometry[] = [];
+  const normalizePart = (g: THREE.BufferGeometry) => {
+    const out = g.index ? g.toNonIndexed() : g;
+    if (out.getAttribute("uv")) out.deleteAttribute("uv");
+    return out;
+  };
+
+  // Roof corner sump bowl / dome strainer on top of sloped screed (+5.825)
+  const sumpGeo = new THREE.CylinderGeometry(0.11, 0.09, 0.045, 16);
+  sumpGeo.translate(dr.sumpX, s.levels.roofDeck + rf.screedMin + 0.018, dr.sumpZ);
+  pipeParts.push(normalizePart(sumpGeo));
+
+  // Horizontal 4" sanitary PVC stub penetrating parapet bottom out to exterior riser (x: sumpX -> pipeX)
+  const stubLen = dr.pipeX - dr.sumpX;
+  const stubGeo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, stubLen, 16);
+  stubGeo.rotateZ(Math.PI / 2);
+  stubGeo.translate((dr.sumpX + dr.pipeX) / 2, dr.topY, dr.pipeZ);
+  pipeParts.push(normalizePart(stubGeo));
+
+  // Exterior 90-degree sanitary elbow hub at top of riser
+  const elbowHub = new THREE.CylinderGeometry(pipeRadius * 1.18, pipeRadius * 1.18, 0.14, 16);
+  elbowHub.translate(dr.pipeX, dr.topY - 0.02, dr.pipeZ);
+  pipeParts.push(normalizePart(elbowHub));
+
+  // Vertical 4" sanitary PVC downspout shaft down East wall/column line (topY -> bottomY + 0.14)
+  const riserBot = dr.bottomY + 0.14;
+  const riserH = dr.topY - riserBot;
+  const riserGeo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, riserH, 16);
+  riserGeo.translate(dr.pipeX, (dr.topY + riserBot) / 2, dr.pipeZ);
+  pipeParts.push(normalizePart(riserGeo));
+
+  // Pipe bell couplings + steel anchoring clamps to facade every ~1.25 m
+  for (const clampY of [0.95, 2.15, 3.35, 4.55, 5.55]) {
+    const collar = new THREE.CylinderGeometry(pipeRadius * 1.24, pipeRadius * 1.24, 0.055, 14);
+    collar.translate(dr.pipeX, clampY, dr.pipeZ);
+    pipeParts.push(normalizePart(collar));
+
+    const anchorBracket = new THREE.BoxGeometry(0.11, 0.035, 0.05);
+    anchorBracket.translate(dr.pipeX - 0.045, clampY, dr.pipeZ);
+    pipeParts.push(normalizePart(anchorBracket));
+  }
+
+  // Bottom 45-degree discharge elbow & concrete splash pad at grade
+  const shoeGeo = new THREE.CylinderGeometry(pipeRadius * 1.05, pipeRadius * 1.08, 0.28, 16);
+  shoeGeo.rotateZ(-Math.PI / 4);
+  shoeGeo.translate(dr.pipeX + 0.09, dr.bottomY + 0.08, dr.pipeZ);
+  pipeParts.push(normalizePart(shoeGeo));
+
+  const mergedPipe = mergeGeometries(pipeParts, false);
+  pipeParts.forEach((g) => g.dispose());
+
+  if (mergedPipe) {
+    pushGeometry({
+      ifcType: "IFCPIPESEGMENT",
+      name: L(
+        'Bajante Aguas Lluvias BLL-1 (Tubería PVC Sanitaria Ø 4" + Tragante)',
+        'Rainwater Downspout BLL-1 (4" Sanitary PVC Pipe + Roof Drain)'
+      ),
+      objectType: 'PipeSegment: 4" (110mm) Sanitary PVC Rainwater Downspout',
+      comments: L(
+        'Bajante aguas lluvias tubería PVC sanitaria Ø 4" + tragante',
+        '4" PVC sanitary rainwater downspout connected to 1% sloped roof drain'
+      ),
+      bimTags: "bajante tubo tuberia pvc sanitario 4 pulgadas desague agua lluvia tragante pluvial",
+      level: lvlRoof,
+      material: isEn ? s.materials.rainPipe.en : s.materials.rainPipe.es,
+      color: 0xeab308,
+      geom: mergedPipe,
+    });
+  }
 
   return {
     filename: "Portico_2N_Vivienda_Balcon_BIM5D.ifc",
-    sizeBytes: 1284600,
+    sizeBytes: 1348200,
     elements,
     boundingBox,
   };

@@ -1211,13 +1211,14 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
   z1: number;
   topY: number;
   thickness: number;
-  voidRect: { x0: number; x1: number; z0: number; z1: number };
+  voidRect?: { x0: number; x1: number; z0: number; z1: number } | null;
   bottomSpacing?: number;
   topSpacing?: number;
   topLenInterior?: number;
   topLenEdge?: number;
   interiorBeamX?: number[];
   interiorBeamZ?: number[];
+  isRoofSlab?: boolean;
 }): RebarPackageResult {
   const {
     x0,
@@ -1226,13 +1227,14 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     z1,
     topY,
     thickness,
-    voidRect,
+    voidRect = null,
     bottomSpacing = 0.2,
     topSpacing = 0.2,
     topLenInterior = 2.0,
     topLenEdge = 1.0,
     interiorBeamX = [0],
     interiorBeamZ = [0],
+    isRoofSlab = false,
   } = opts;
 
   const botAcc = createAccumulator();
@@ -1252,15 +1254,15 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
   const yTopZ = yTopX - 0.012;
 
   for (const z of sampleSpanStations(zMin, zMax, bottomSpacing)) {
-    const insideZ = z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04;
-    const segs = insideZ ? clip1DExcluding(xMin, xMax, voidRect.x0, voidRect.x1) : [[xMin, xMax]];
+    const insideZ = voidRect ? z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04 : false;
+    const segs = insideZ && voidRect ? clip1DExcluding(xMin, xMax, voidRect.x0, voidRect.x1) : [[xMin, xMax]];
     for (const [sa, sb] of segs) {
       addBarSegment(botAcc, new THREE.Vector3(sa, yBotX, z), new THREE.Vector3(sb, yBotX, z), "#3");
     }
   }
   for (const x of sampleSpanStations(xMin, xMax, bottomSpacing)) {
-    const insideX = x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04;
-    const segs = insideX ? clip1DExcluding(zMin, zMax, voidRect.z0, voidRect.z1) : [[zMin, zMax]];
+    const insideX = voidRect ? x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04 : false;
+    const segs = insideX && voidRect ? clip1DExcluding(zMin, zMax, voidRect.z0, voidRect.z1) : [[zMin, zMax]];
     for (const [sa, sb] of segs) {
       addBarSegment(botAcc, new THREE.Vector3(x, yBotZ, sa), new THREE.Vector3(x, yBotZ, sb), "#3");
     }
@@ -1270,10 +1272,9 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     const segStart = Math.max(xMin, bx - topLenInterior / 2);
     const segEnd = Math.min(xMax, bx + topLenInterior / 2);
     for (const z of sampleSpanStations(zMin, zMax, topSpacing)) {
-      const insideZ = z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04;
-      const segs = insideZ
-        ? clip1DExcluding(segStart, segEnd, voidRect.x0, voidRect.x1)
-        : [[segStart, segEnd]];
+      const insideZ = voidRect ? z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04 : false;
+      const segs =
+        insideZ && voidRect ? clip1DExcluding(segStart, segEnd, voidRect.x0, voidRect.x1) : [[segStart, segEnd]];
       for (const [sa, sb] of segs) {
         addBarSegment(topNegAcc, new THREE.Vector3(sa, yTopX, z), new THREE.Vector3(sb, yTopX, z), "#3");
       }
@@ -1283,10 +1284,9 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     const segStart = Math.max(zMin, bz - topLenInterior / 2);
     const segEnd = Math.min(zMax, bz + topLenInterior / 2);
     for (const x of sampleSpanStations(xMin, xMax, topSpacing)) {
-      const insideX = x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04;
-      const segs = insideX
-        ? clip1DExcluding(segStart, segEnd, voidRect.z0, voidRect.z1)
-        : [[segStart, segEnd]];
+      const insideX = voidRect ? x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04 : false;
+      const segs =
+        insideX && voidRect ? clip1DExcluding(segStart, segEnd, voidRect.z0, voidRect.z1) : [[segStart, segEnd]];
       for (const [sa, sb] of segs) {
         addBarSegment(topNegAcc, new THREE.Vector3(x, yTopZ, sa), new THREE.Vector3(x, yTopZ, sb), "#3");
       }
@@ -1295,12 +1295,20 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
 
   for (const x of sampleSpanStations(xMin, xMax, topSpacing)) {
     const sRearEnd = Math.min(zMax, zMin + topLenEdge);
-    const insideVoidBand = x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04;
+    const insideVoidBand = voidRect ? x > voidRect.x0 - 0.04 && x < voidRect.x1 + 0.04 : false;
     if (!insideVoidBand) {
       addBarSegment(
         topNegAcc,
         new THREE.Vector3(x, yTopZ, zMin),
         new THREE.Vector3(x, yTopZ, sRearEnd),
+        "#3"
+      );
+    }
+    if (!voidRect) {
+      addBarSegment(
+        topNegAcc,
+        new THREE.Vector3(x, yTopZ, Math.max(zMin, zMax - topLenEdge)),
+        new THREE.Vector3(x, yTopZ, zMax),
         "#3"
       );
     }
@@ -1312,7 +1320,7 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
       new THREE.Vector3(xMin + topLenEdge, yTopX, z),
       "#3"
     );
-    const insideVoidZ = z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04;
+    const insideVoidZ = voidRect ? z > voidRect.z0 - 0.04 && z < voidRect.z1 + 0.04 : false;
     if (!insideVoidZ) {
       addBarSegment(
         topNegAcc,
@@ -1323,27 +1331,29 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     }
   }
 
-  const devExt = 0.5;
-  const trimZ1 = voidRect.z1 + 0.06;
-  const trimX0 = voidRect.x0 - 0.06;
-  const txLo = Math.max(xMin, voidRect.x0 - devExt);
-  const txHi = Math.min(xMax, voidRect.x1 + 0.05);
-  const tzLo = Math.max(zMin, voidRect.z0 - 0.05);
-  const tzHi = Math.min(zMax, voidRect.z1 + devExt);
+  if (voidRect) {
+    const devExt = 0.5;
+    const trimZ1 = voidRect.z1 + 0.06;
+    const trimX0 = voidRect.x0 - 0.06;
+    const txLo = Math.max(xMin, voidRect.x0 - devExt);
+    const txHi = Math.min(xMax, voidRect.x1 + 0.05);
+    const tzLo = Math.max(zMin, voidRect.z0 - 0.05);
+    const tzHi = Math.min(zMax, voidRect.z1 + devExt);
 
-  for (const off of [0, 0.06]) {
-    addBarSegment(
-      trimmerAcc,
-      new THREE.Vector3(txLo, yBotX + 0.02, trimZ1 + off),
-      new THREE.Vector3(txHi, yBotX + 0.02, trimZ1 + off),
-      "#4"
-    );
-    addBarSegment(
-      trimmerAcc,
-      new THREE.Vector3(trimX0 - off, yBotZ + 0.02, tzLo),
-      new THREE.Vector3(trimX0 - off, yBotZ + 0.02, tzHi),
-      "#4"
-    );
+    for (const off of [0, 0.06]) {
+      addBarSegment(
+        trimmerAcc,
+        new THREE.Vector3(txLo, yBotX + 0.02, trimZ1 + off),
+        new THREE.Vector3(txHi, yBotX + 0.02, trimZ1 + off),
+        "#4"
+      );
+      addBarSegment(
+        trimmerAcc,
+        new THREE.Vector3(trimX0 - off, yBotZ + 0.02, tzLo),
+        new THREE.Vector3(trimX0 - off, yBotZ + 0.02, tzHi),
+        "#4"
+      );
+    }
   }
 
   const parts = [
@@ -1352,7 +1362,7 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     finalizePart(trimmerAcc, REBAR_ZONE_COLORS.longitudinal, "longitudinal"),
   ].filter((p): p is IfcGeometryPart => p !== null);
 
-  const voidA = (voidRect.x1 - voidRect.x0) * (voidRect.z1 - voidRect.z0);
+  const voidA = voidRect ? (voidRect.x1 - voidRect.x0) * (voidRect.z1 - voidRect.z0) : 0;
   const netArea = ((x1 - x0) * (z1 - z0) - voidA).toFixed(1);
 
   const spec: StructuralRebarSpec = {
@@ -1363,11 +1373,19 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
     steelGradeEn: "ASTM A706 / A615 Grade 60 Deformed (fy = 60 ksi)",
     concreteClassEs: `f'c = 24 MPa (e = ${Math.round(thickness * 100)} cm)`,
     concreteClassEn: `f'c = 3,500 PSI (t = ${(thickness * 39.37).toFixed(1)}")`,
-    sectionDimsEs: `8.30 × 7.30 m c/ hueco escalera (${netArea} m², e=12 cm)`,
-    sectionDimsEn: `27.2 × 24.0 ft w/ stair opening (${netArea} m², t=4.7")`,
+    sectionDimsEs: isRoofSlab
+      ? `8.30 × 7.30 m maciza cubierta (${netArea} m², e=12 cm + pend. 1%)`
+      : `8.30 × 7.30 m c/ hueco escalera (${netArea} m², e=12 cm)`,
+    sectionDimsEn: isRoofSlab
+      ? `27.2 × 24.0 ft solid roof slab (${netArea} m², t=4.7" + 1% slope)`
+      : `27.2 × 24.0 ft w/ stair opening (${netArea} m², t=4.7")`,
     clearCoverMm: 25,
-    longitudinalEs: "Parrilla Inf. Bidireccional #3 @ 0.20 m + Remate hueco 2 #4",
-    longitudinalEn: 'Bottom 2-Way Mat #3 @ 8" O.C. + 2 #4 Opening Trimmer Bars',
+    longitudinalEs: isRoofSlab
+      ? "Parrilla Inf. Bidireccional #3 @ 0.20 m continua sobre vigas VCU"
+      : "Parrilla Inf. Bidireccional #3 @ 0.20 m + Remate hueco 2 #4",
+    longitudinalEn: isRoofSlab
+      ? 'Continuous Bottom 2-Way Mat #3 @ 8" O.C. over VCU roof beams'
+      : 'Bottom 2-Way Mat #3 @ 8" O.C. + 2 #4 Opening Trimmer Bars',
     transverseEs: "Bastones Negativos Sup. #3 @ 0.20 m (L=2.0 m ejes B y 2 / L=1.0 m bordes)",
     transverseEn: 'Top Negative Strips #3 @ 8" O.C. (6.6\' interior beams / 3.3\' perimeter)',
     confinementZoneMm: 0,
@@ -1382,13 +1400,21 @@ export function buildFloorSlabBidirectionalRebarPackage(opts: {
         labelEn: 'Continuous 2-way bottom #3 @ 8" + negative top reinforcement over beams',
         passed: true,
       },
-      {
-        clauseCol: "NSR-10 C.13.4.2",
-        clauseUs: "ACI 318 8.5.4",
-        labelEs: "Refuerzo de bordes en abertura de escalera ESC-1 (2 #4 con anclaje 0.50 m)",
-        labelEn: 'Stairwell opening trimmer reinforcement (2 #4 anchored 20" past corners)',
-        passed: true,
-      },
+      voidRect
+        ? {
+            clauseCol: "NSR-10 C.13.4.2",
+            clauseUs: "ACI 318 8.5.4",
+            labelEs: "Refuerzo de bordes en abertura de escalera ESC-1 (2 #4 con anclaje 0.50 m)",
+            labelEn: 'Stairwell opening trimmer reinforcement (2 #4 anchored 20" past corners)',
+            passed: true,
+          }
+        : {
+            clauseCol: "NSR-10 C.7.12 / Impermeab.",
+            clauseUs: "ACI 318 24.4.3",
+            labelEs: "Refuerzo superior perimetral 4 bordes + retracción cubiertas expuestas",
+            labelEn: "Full 4-edge negative crack control + temperature-shrinkage mesh",
+            passed: true,
+          },
       {
         clauseCol: "NSR-10 C.7.7.1(c)",
         clauseUs: "ACI 318 Tbl. 20.5.1.3.1",
