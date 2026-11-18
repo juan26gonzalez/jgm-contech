@@ -8,15 +8,20 @@ import {
 } from "./types";
 
 export const RESIDENTIAL_PROTO_ROOM_ORDER: string[] = [
+  "Sala",
+  "Comedor",
+  "Cocina",
+  "Baño Social",
+  "Hall Escalera",
   "Habitación Principal",
   "Habitación 1",
   "Habitación 2",
   "Habitación 3",
   "Habitación 4",
   "Habitación Huésped",
-  "Sala",
-  "Cocina",
   "Baño 1",
+  "Hall Nivel 2",
+  "Balcón",
   "Entrada / Puerta 1",
   "Entrada / Puerta 2",
 ];
@@ -446,7 +451,7 @@ const ACTIVITY_MATCH_HINTS: Record<RoomActivityKey, string[]> = {
   panete: ["panete", "revoco"],
   pintura: ["estuco", "pintura", "vinilica"],
   carpinteria: ["puerta", "ventana", "carpinteria"],
-  cubierta: ["cubierta", "eternit", "teja"],
+  cubierta: ["cubierta", "upvc", "pag", "correas", "eternit", "teja"],
   otro: [],
 };
 
@@ -482,8 +487,13 @@ export function normalizeRevitRoomName(rawSuffix: string): string {
   if (n.includes("hab 4") || n.includes("habitacion 4")) return "Habitación 4";
   if (n.includes("huesped")) return "Habitación Huésped";
   if (n.includes("sala")) return "Sala";
+  if (n.includes("comedor")) return "Comedor";
   if (n.includes("cocina")) return "Cocina";
+  if (n.includes("bano social") || n.includes("powder")) return "Baño Social";
   if (n.includes("bano 1") || n === "bano") return "Baño 1";
+  if (n.includes("hall escalera") || n.includes("stair hall")) return "Hall Escalera";
+  if (n.includes("hall nivel 2") || n.includes("upper hall")) return "Hall Nivel 2";
+  if (n.includes("balcon") || n.includes("balcony")) return "Balcón";
   if (n.includes("puerta 1") || n.includes("entrada 1")) return "Entrada / Puerta 1";
   if (n.includes("puerta 2") || n.includes("entrada 2")) return "Entrada / Puerta 2";
 
@@ -562,9 +572,16 @@ export function classifyRevitActivityAndRoom(
   } else if (combined.includes("estuco") || combined.includes("pintura")) {
     activityKey = "pintura";
     activityLabel = "Estuco y pintura vinílica";
-  } else if (combined.includes("cubierta") || combined.includes("eternit") || combined.includes("teja")) {
+  } else if (
+    combined.includes("cubierta") ||
+    combined.includes("upvc") ||
+    combined.includes("correa") ||
+    combined.includes("pag") ||
+    combined.includes("eternit") ||
+    combined.includes("teja")
+  ) {
     activityKey = "cubierta";
-    activityLabel = "Cubierta teja Eternit";
+    activityLabel = "Cubierta UPVC + correas perfil PAG";
   } else if (combined.includes("ventana") || combined.includes("puerta")) {
     activityKey = "carpinteria";
     activityLabel = combined.includes("ventana") ? "Ventanería aluminio y vidrio" : "Puertas interiores y acceso";
@@ -826,8 +843,9 @@ export function computeMaterialsForRoomSelection(
         add("Pintura Vinilo Tipo 1 (Galones)", "Gal", q * 0.12);
         break;
       case "cubierta":
-        add("Teja Ondulada Eternit No. 6/8", "m²", q * 1.1);
-        add("Ganchos de Fijación con Golilla", "Und", q * 3.0);
+        add("Teja UPVC Termoacústica Trapezoidal e=2.5mm", "m²", q * 1.08);
+        add("Correa Perfil PAG C 150×50×2.0 mm", "ml", q * 1.3);
+        add("Ganchos de Fijación con Golilla", "Und", q * 4.0);
         break;
       default:
         break;

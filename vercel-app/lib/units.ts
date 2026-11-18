@@ -106,29 +106,37 @@ const CHAPTER_EN_MAP: Array<[RegExp, string]> = [
 ];
 
 const EXACT_PHRASE_EN: Record<string, string> = {
+  "Concreto en zapatas, pedestales y vigas de cimentación f'c=21 MPa": "Spread footings, pedestals & grade beams concrete f'c=3,000 PSI",
+  "Concreto en columnas, vigas aéreas, losas y escalera f'c=24 MPa": "RC frame columns, floor beams, 2-way slabs & stair f'c=3,500 PSI",
   "Concreto en zapatas y vigas de cimentación f'c=21 MPa": "Spread footings & grade beams concrete f'c=3,000 PSI",
   "Concreto en columnas y pórtico estructural f'c=24 MPa": "Structural frame columns & tie beams concrete f'c=3,500 PSI",
   "Muros en mampostería de bloques de concreto No. 12": "Concrete masonry unit (CMU No. 12) interior & facade walls",
   "Muros en mampostería de bloques de concreto No. 12 (227.89 m²)": "Concrete masonry unit (CMU No. 12) walls",
   "Pañete y mortero de revoco en muros dos caras": "Cement stucco plaster & screeding on walls (two sides)",
   "Pañete y mortero de revoco en muros (dos caras)": "Cement stucco plaster & screeding on walls (two sides)",
+  "Instalación de piso en porcelanato 51x51 cm (Pisos N1 y N2)": "20\"×20\" Porcelain tile flooring (Levels 1 & 2 + Balcony)",
+  "Instalación de piso en porcelanato 51×51 cm (Pisos N1 y N2)": "20\"×20\" Porcelain tile flooring (Levels 1 & 2 + Balcony)",
   "Instalación de piso en porcelanato 51x51 cm y plantilla": "20\"×20\" Porcelain tile flooring & 2.75\" leveling sub-slab",
   "Instalación de piso en porcelanato 51×51 cm y plantilla": "20\"×20\" Porcelain tile flooring & 2.75\" leveling sub-slab",
   "Plantilla de concreto e=7cm (base y solado de piso)": "Concrete floor leveling slab (t=2.75\") & mud slab",
   "Instalación de piso en porcelanato 51x51 cm y enchape": "20\"×20\" Porcelain tile flooring & wall cladding",
   "Instalación de piso en porcelanato 51×51 cm y enchape": "20\"×20\" Porcelain tile flooring & wall cladding",
   "Porcelanato 51×51": "20\"×20\" Porcelain Floor Tile",
+  "Cielo raso suspendido Drywall + Aislamiento Frescasa Eco 2-1/2\" (Nivel 2)": "Suspended drywall ceiling + Frescasa Eco 2-1/2\" insulation (Level 2)",
   "Cielo raso suspendido Drywall + Aislamiento Frescasa Eco 2-1/2\"": "Suspended drywall ceiling + Frescasa Eco 2-1/2\" thermal insulation",
   "Instalación de cielo raso suspendido e=5.3cm": "Suspended drywall ceiling installation (t=2.1\")",
   "Suministro e instalación de aislamiento termoacústico Frescasa Eco 2-1/2\" sobre cielo raso (todas las zonas)": "Frescasa Eco 2-1/2\" thermal-acoustic fiberglass insulation over ceiling",
   "Estuco plástico y pintura vinílica arquitectónica en muros": "Skim coat putty & Grade-1 architectural latex paint on walls",
   "Estuco plástico y pintura vinílica en muros": "Skim coat putty & Grade-1 architectural latex paint on walls",
+  "Montaje de cubierta UPVC termoacústica y correas perfil PAG C150": "Thermo-acoustic UPVC roof deck & cold-formed PAG C150 purlins",
+  "Montaje de cubierta termoacústica UPVC + correas perfil PAG": "Thermo-acoustic UPVC roof panels + PAG C150 purlins",
   "Montaje de cubierta termoacústica en teja Eternit": "Thermo-acoustic corrugated fiber-cement roof & ridge installation",
   "Montaje de cubierta en teja ondulada Eternit y caballetes": "Corrugated fiber-cement roofing & ridge cap assembly",
   "Suministro e instalación de puertas interiores y acceso (7 und)": "Supply & installation of interior & entry doors (7 ea)",
   "Suministro e instalación de ventanería en aluminio y vidrio (8 und)": "Supply & installation of aluminum & glass windows (8 ea)",
   "Suministro e instalación de ventanería y puertas en aluminio": "Aluminum curtain-wall glazing, windows & entry doors assembly",
   "Suministro e instalación de ventanas y accesos": "Aluminum glazing curtain-wall & entry doors assembly",
+  "Ventanería aluminio termoacústica, puertas y barandas balcón": "Thermo-acoustic aluminum windows, doors & balcony guardrails",
   "Ventanería aluminio termoacústica y puertas interiores": "Thermo-acoustic aluminum windows & interior doors",
   "Ventanería aluminio y puertas acústicas": "Thermo-acoustic aluminum windows & acoustic doors",
   "Montaje de cubierta termoacústica Eternit y caballetes": "Thermo-acoustic fiber-cement roofing & ridge cap assembly",
@@ -143,6 +151,8 @@ const EXACT_PHRASE_EN: Record<string, string> = {
   "Frescasa Eco 2-1/2\" (sobre cielo raso)": "Frescasa Eco 2-1/2\" Fiberglass Insulation (above ceiling)",
   "Zapatas y vigas de cimentación f'c=21 MPa": "Spread footings & grade beams f'c=3,000 PSI",
   "Columnas y pórtico estructural f'c=24 MPa": "Structural columns & perimeter tie beams f'c=3,500 PSI",
+  "Columnas, vigas aéreas, losas N2, balcón y escalera": "RC columns, floor beams, Level 2 slab, balcony & stair",
+  "Zapatas, pedestales y vigas de cimentación f'c=21 MPa": "Footings, pedestals & grade tie-beams f'c=3,000 PSI",
   "Muros en mampostería bloque No. 12": "CMU No. 12 masonry infill & partition walls",
   "Pañete y mortero de revoco dos caras": "Cement stucco plaster & screeding (two sides)",
   "Montaje de cubierta termoacústica Eternit": "Corrugated thermo-acoustic roof assembly",
@@ -150,6 +160,20 @@ const EXACT_PHRASE_EN: Record<string, string> = {
   "Cielo raso suspendido + aislamiento Frescasa 2-1/2\"": "Suspended ceiling + Frescasa 2-1/2\" acoustic insulation",
   "Estuco plástico y pintura arquitectónica": "Skim coat putty & Grade-1 architectural paint",
   "Ventanería en aluminio y puertas de acceso": "Aluminum glazing & architectural entry doors",
+  "Porcelanato N1, N2 y Balcón (51×51 cm)": "Porcelain Flooring L1, L2 & Balcony (20\"×20\")",
+  "Ventanería aluminio, puertas y barandas": "Aluminum windows, doors & guardrails",
+  "Niveles 1 y 2": "Levels 1 & 2",
+  "Nivel 2 + Balcón": "Level 2 + Balcony",
+  "Nivel 1": "Level 1",
+  "Cubierta UPVC / PAG": "UPVC Roof / PAG Purlins",
+  "Zapatas, pedestales y vigas de cimentación": "Footings, pedestals & grade beams",
+  "Columnas, vigas aéreas y losa entrepiso": "RC columns, elevated beams & 2-way slab",
+  "Losa maciza entrepiso, balcón y escalera": "Solid 2-way slab, cantilever balcony & stair",
+  "Mampostería bloque N° 12 y pañete": "CMU No. 12 masonry & stucco plaster",
+  "Cielo raso drywall y aislamiento Frescasa": "Suspended drywall ceiling & Frescasa insulation",
+  "Ventanería, puertas y barandas balcón": "Aluminum glazing, doors & balcony guardrails",
+  "Cubierta UPVC termoacústica y correas perfil PAG": "Thermo-acoustic UPVC roof panels & PAG C-purlins",
+  "Piso Porcelanato 51×51": "20\"×20\" Porcelain Floor Tile",
   "Nivel 1 - Corporativo": "Level 1 - Corporate",
   "Nivel 1 - Acceso & Corporativo": "Level 1 - Lobby & Corporate",
   "Cubierta y Envolvente": "Roof & Building Envelope",
@@ -218,6 +242,10 @@ const MATERIAL_EN_MAP: Array<[RegExp, string]> = [
   [/Estuco\s+Pl[áa]stico\s*\+\s*Pintura\s+Vin[íi]lica\s+Tipo\s+1/i, "Interior Skim Coat + Grade-1 Architectural Latex Paint"],
   [/Pintura\s+Vin[íi]l(?:o|ica)\s+Tipo\s+1\s*\(Cuñetes.*/i, "Grade-1 Architectural Latex Paint (5-Gal Pails)"],
   [/Pintura\s+Vin[íi]l(?:o|ica)\s+Tipo\s+1.*/i, "Grade-1 Architectural Latex Paint (Gallons)"],
+  [/Teja\s+UPVC\s+Termoac[úu]stica.*/i, "Trapezoidal Thermo-Acoustic UPVC Roof Panel (+8% lap & waste)"],
+  [/Correa\s+Perfil\s+PAG.*/i, "Cold-Formed Galvanized PAG C-Purlin (150×50×2.0 mm)"],
+  [/Caballete\s+Articulado\s+Cubierta\s+UPVC/i, "Moulded UPVC Roof Ridge Cap Flashing"],
+  [/Tornillos\s+Autoperforantes.*/i, "Self-Drilling Roof Fasteners w/ EPDM Washer"],
   [/Teja\s+Ondulada\s+Eternit.*/i, "Corrugated Fiber-Cement Roofing Panels (+10% lap & waste)"],
   [/Caballete\s+Articulado\s+Cubierta\s+Eternit/i, "Fiber-Cement Roof Ridge Caps & Flashing"],
   [/Ganchos\s+de\s+Fijaci[óo]n\s+con\s+Golilla/i, "Galvanized J-Hook Roof Fasteners w/ EPDM Washer"],
@@ -276,6 +304,10 @@ const ROOM_EN_MAP: Record<string, string> = {
   "Comedor": "Dining Room",
   "Sala / Comedor": "Living / Dining Area",
   "Cocina": "Kitchen",
+  "Baño Social": "Guest Powder Room",
+  "Hall Escalera": "Stair Hall (L1)",
+  "Hall Nivel 2": "Upper Hall (L2)",
+  "Balcón": "Front Balcony (L2)",
   "Baño 1": "Bathroom 1",
   "Baño 2": "Bathroom 2",
   "Entrada / Puerta 1": "Main Entry / Door 1",
@@ -385,6 +417,10 @@ function translateConstructionText(raw: string): string {
     .replace(/Sala Comedor \/ Recibidor/gi, "Living / Dining / Foyer")
     .replace(/Patio Interior & Lavadero/gi, "Courtyard & Laundry")
     .replace(/Circulación Interior & Pasillos/gi, "Interior Hallways & Circulation")
+    .replace(/Hall Escalera/gi, "Stair Hall (L1)")
+    .replace(/Hall Nivel 2/gi, "Upper Hall (L2)")
+    .replace(/Balc[óo]n/gi, "Front Balcony")
+    .replace(/Comedor/gi, "Dining Room")
     .replace(/Cocina/gi, "Kitchen")
     .replace(/\bSala\b/gi, "Living Room")
     .replace(/puerta 1|entrada 1/gi, "Entry Door 1")
@@ -393,6 +429,7 @@ function translateConstructionText(raw: string): string {
     .replace(/Nivel 1 - Corporativo/gi, "Level 1 - Corporate")
     .replace(/Cubierta y Envolvente/gi, "Roof & Building Envelope")
     .replace(/Cimentación/gi, "Foundations")
+    .replace(/Montaje de cubierta UPVC termoac[úu]stica(?:\s*y\s*correas|\s*\+\s*correas)?(?:\s*(?:en\s*)?perfil\s*PAG(?:\s*C150)?)?/gi, "Thermo-acoustic UPVC roof panels & cold-formed PAG C150 purlins")
     .replace(/Montaje de cubierta termoac[úu]stica(?:\s*\/\s*|\s+)Eternit(?:\s+y\s+caballetes)?/gi, "Thermo-acoustic fiber-cement roofing & ridge cap assembly")
     .replace(/cubierta termoac[úu]stica(?:\s+en\s+teja)?\s*Eternit(?:\s+y\s+caballetes)?/gi, "thermo-acoustic fiber-cement roofing & ridge caps")
     .replace(/cubierta en teja ondulada Eternit y caballetes/gi, "corrugated fiber-cement roofing & ridge caps")
@@ -419,7 +456,9 @@ function translateConstructionText(raw: string): string {
     .replace(/Solado de limpieza para/gi, "Lean concrete mud slab for")
     .replace(/Localización, trazado y replanteo/gi, "Site layout, survey & staking")
     .replace(/Limpieza final de obra y entrega técnica/gi, "Final site cleanup & technical handover")
+    .replace(/zapatas, pedestales y vigas de cimentación/gi, "spread footings, pedestals & grade beams")
     .replace(/zapatas y vigas de cimentación/gi, "spread footings & grade beams")
+    .replace(/columnas, vigas aéreas, losas y escalera/gi, "RC columns, beams, 2-way slabs & stair")
     .replace(/columnas y pórtico estructural/gi, "columns & structural frame")
     .replace(/muros en mampostería de bloques de concreto/gi, "concrete masonry block (CMU) walls")
     .replace(/pañete y mortero de revoco/gi, "cement stucco plaster & screeding")

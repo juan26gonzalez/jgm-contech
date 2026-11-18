@@ -191,10 +191,11 @@ def _calcular_insumos_desde_df(df_5d, campo_cant):
             continue
         act_n = normalizar_texto(str(r["Actividad"]))
         und = str(r.get("Unidad", "") or "").lower()
-        if any(k in act_n for k in ["cubierta", "eternit", "teja", "caballete"]):
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Teja Ondulada Eternit No. 6/8", "Unidad": "m²", "Total_Teorico": c_calc * 1.10})
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Caballete Articulado Cubierta Eternit", "Unidad": "ml", "Total_Teorico": c_calc * 0.12})
-            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Ganchos de Fijación con Golilla", "Unidad": "Und", "Total_Teorico": c_calc * 3.0})
+        if any(k in act_n for k in ["cubierta", "upvc", "pag", "correa", "eternit", "teja", "caballete"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Teja UPVC Termoacústica Trapezoidal e=2.5mm", "Unidad": "m²", "Total_Teorico": c_calc * 1.08})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Correa Perfil PAG C 150×50×2.0 mm", "Unidad": "ml", "Total_Teorico": c_calc * 1.30})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Caballete Articulado Cubierta UPVC", "Unidad": "ml", "Total_Teorico": c_calc * 0.11})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Tornillos Autoperforantes con Arandela EPDM", "Unidad": "Und", "Total_Teorico": c_calc * 4.0})
         elif any(k in act_n for k in ["ventaneria", "ventana", "puerta"]):
             if ("ventaneria" in act_n or "ventana" in act_n) and "puerta" in act_n:
                 n_win = int(round(c_calc * 0.57))
@@ -669,9 +670,9 @@ def _classify_revit_row_py(raw_comment, raw_family=""):
     elif "estuco" in combined or "pintura" in combined:
         act_key = "pintura"
         act_label = "Estuco y pintura vinílica"
-    elif "cubierta" in combined or "eternit" in combined or "teja" in combined:
+    elif "cubierta" in combined or "upvc" in combined or "pag" in combined or "eternit" in combined or "teja" in combined:
         act_key = "cubierta"
-        act_label = "Cubierta teja Eternit"
+        act_label = "Cubierta UPVC + correas perfil PAG"
     elif "ventana" in combined or "puerta" in combined:
         act_key = "carpinteria"
         act_label = "Ventanería aluminio y vidrio" if "ventana" in combined else "Puertas interiores y acceso"

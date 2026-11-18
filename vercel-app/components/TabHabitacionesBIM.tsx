@@ -71,7 +71,7 @@ const ACTIVITY_LABELS_ES: Record<RoomActivityKey, string> = {
   panete: "Pañete muros",
   pintura: "Estuco y pintura",
   carpinteria: "Carpintería (puertas/ventanas)",
-  cubierta: "Cubierta Eternit",
+  cubierta: "Cubierta UPVC + Correas PAG",
   otro: "Otra actividad BIM",
 };
 
@@ -85,7 +85,7 @@ const ACTIVITY_LABELS_EN: Record<RoomActivityKey, string> = {
   panete: "Stucco & plaster render",
   pintura: "Skim coat & architectural paint",
   carpinteria: "Doors & glazing millwork",
-  cubierta: "Corrugated roofing",
+  cubierta: "UPVC roofing & PAG purlins",
   otro: "Other BIM activity",
 };
 
@@ -109,8 +109,9 @@ const ROOM_MATERIAL_EN: Record<string, string> = {
   "Arena Lavada para Pañete": "Washed plastering sand",
   "Estuco Plástico Listo (Cuñetes)": "Ready-mix acrylic skim coat (5-gal pails)",
   "Pintura Vinilo Tipo 1 (Galones)": "Architectural latex paint Type 1 (gal)",
-  "Teja Ondulada Eternit No. 6/8": "Corrugated fiber-cement roofing panel",
-  "Ganchos de Fijación con Golilla": "Roofing J-hooks with EPDM washer",
+  "Teja UPVC Termoacústica Trapezoidal e=2.5mm": "Trapezoidal thermo-acoustic UPVC roof panel t=2.5mm",
+  "Correa Perfil PAG C 150×50×2.0 mm": "Cold-formed PAG C-purlin 150×50×2.0 mm",
+  "Ganchos de Fijación con Golilla": "Roofing self-drilling screws w/ EPDM washer",
 };
 
 function localizeRoomMaterialUnit(unit: string, lang: "es" | "en"): string {

@@ -51,7 +51,7 @@ export const PROYECTOS_BASE: Record<string, ProjectConfig> = {
       { Item: "4.1", Capitulo: "4. ACABADOS Y PINTURA", Actividad: "Estuco plástico y pintura vinílica en muros", Unidad: "m²", Cantidad_Contratada: 455.78, Precio_Unitario: 16500, match_keys: ["estuco", "pintura", "vinilica"] },
       { Item: "5.1", Capitulo: "5. CARPINTERIA", Actividad: "Suministro e instalación de puertas interiores y acceso (7 und)", Unidad: "und", Cantidad_Contratada: 7.0, Precio_Unitario: 390000, match_keys: ["puertas", "puerta", "door"] },
       { Item: "5.2", Capitulo: "5. CARPINTERIA", Actividad: "Suministro e instalación de ventanería en aluminio y vidrio (8 und)", Unidad: "und", Cantidad_Contratada: 8.0, Precio_Unitario: 280000, match_keys: ["ventanas", "ventana", "window", "ventaneria"] },
-      { Item: "6.1", Capitulo: "6. CUBIERTA", Actividad: "Montaje de cubierta termoacústica y caballetes", Unidad: "m²", Cantidad_Contratada: 132.05, Precio_Unitario: 45000, match_keys: ["cubierta", "eternit", "techo", "teja"] },
+      { Item: "6.1", Capitulo: "6. CUBIERTA", Actividad: "Montaje de cubierta termoacústica y caballetes", Unidad: "m²", Cantidad_Contratada: 132.05, Precio_Unitario: 45000, match_keys: ["cubierta", "upvc", "pag", "techo", "teja"] },
     ],
   },
   proto_corporativo: {

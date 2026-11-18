@@ -60,7 +60,7 @@ export function resolverMetaApu(
   const uNorm = normalizarUnidad(unidad);
   const hasAny = (keys: string[]) => keys.some((k) => actN.includes(k));
 
-  if (hasAny(["cubierta", "eternit", "techo", "teja", "caballete"])) {
+  if (hasAny(["cubierta", "upvc", "correas", "pag", "eternit", "techo", "teja", "caballete"])) {
     return {
       meta_dia: 20.0,
       und: "m²/día",
@@ -598,11 +598,12 @@ export function calcularConsolidacionLocal(
       const cCalc = Number(r[campo] || 0);
       if (cCalc <= 0) continue;
       const actN = normalizarTexto(r.Actividad);
-      if (actN.includes("cubierta") || actN.includes("eternit") || actN.includes("teja") || actN.includes("caballete")) {
-        list.push({ Actividad: r.Actividad, Insumo: "Teja Ondulada Eternit No. 6/8", Unidad: "m²", Total_Teorico: cCalc * 1.1 });
-        list.push({ Actividad: r.Actividad, Insumo: "Caballete Articulado Cubierta Eternit", Unidad: "ml", Total_Teorico: cCalc * 0.12 });
-        list.push({ Actividad: r.Actividad, Insumo: "Ganchos de Fijación con Golilla", Unidad: "Und", Total_Teorico: cCalc * 3.0 });
-      } else if (actN.includes("ventaneria") || actN.includes("ventana") || actN.includes("puerta")) {
+      if (actN.includes("cubierta") || actN.includes("upvc") || actN.includes("pag") || actN.includes("eternit") || actN.includes("teja") || actN.includes("caballete")) {
+        list.push({ Actividad: r.Actividad, Insumo: "Teja UPVC Termoacústica Trapezoidal e=2.5mm", Unidad: "m²", Total_Teorico: cCalc * 1.08 });
+        list.push({ Actividad: r.Actividad, Insumo: "Correa Perfil PAG C 150×50×2.0 mm", Unidad: "ml", Total_Teorico: cCalc * 1.3 });
+        list.push({ Actividad: r.Actividad, Insumo: "Caballete Articulado Cubierta UPVC", Unidad: "ml", Total_Teorico: cCalc * 0.11 });
+        list.push({ Actividad: r.Actividad, Insumo: "Tornillos Autoperforantes con Arandela EPDM", Unidad: "Und", Total_Teorico: cCalc * 4.0 });
+      } else if (actN.includes("ventaneria") || actN.includes("ventana") || actN.includes("puerta") || actN.includes("baranda")) {
         if ((actN.includes("ventaneria") || actN.includes("ventana")) && actN.includes("puerta")) {
           const nWin = Math.round(cCalc * 0.57);
           const nDoor = Math.max(0, cCalc - nWin);

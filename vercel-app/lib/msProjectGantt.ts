@@ -190,7 +190,7 @@ export const MEZZANINE_GANTT_BASE: GanttTask[] = [
     id: "ACT-08",
     uid: "ACT-08",
     wbs: "3.2",
-    nombre: "Montaje de estructura y cubierta en Eternit",
+    nombre: "Montaje de estructura PAG y cubierta UPVC",
     capitulo: "3. MAMPOSTERIA",
     inicio: "2026-11-25",
     fin: "2026-12-10",
@@ -721,7 +721,7 @@ export function enrichGanttWithExecution(
         if (tNorm.includes("porcelanato") || tNorm.includes("enchape")) return aNorm.includes("porcelanato") || aNorm.includes("enchape");
         if (tNorm.includes("puerta")) return aNorm.includes("puerta");
         if (tNorm.includes("ventana")) return aNorm.includes("ventana");
-        if (tNorm.includes("cubierta") || tNorm.includes("eternit")) return aNorm.includes("cubierta") || aNorm.includes("eternit");
+        if (tNorm.includes("cubierta") || tNorm.includes("upvc") || tNorm.includes("pag") || tNorm.includes("eternit")) return aNorm.includes("cubierta") || aNorm.includes("upvc") || aNorm.includes("pag") || aNorm.includes("eternit");
         if (tNorm.includes("zapata")) return aNorm.includes("zapata");
         if (tNorm.includes("viga")) return aNorm.includes("viga");
         if (tNorm.includes("pedestal") || tNorm.includes("columna")) return aNorm.includes("pedestal") || aNorm.includes("columna");

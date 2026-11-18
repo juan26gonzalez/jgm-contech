@@ -69,7 +69,7 @@ type InspectorTab = "actividades" | "habitaciones" | "elemento";
 type XrayMode = "xray" | "skeleton" | "off";
 type NormFilter = "dual" | "co" | "us";
 
-const STRUCTURAL_IFC_TYPES = new Set(["IFCFOOTING", "IFCCOLUMN", "IFCBEAM", "IFCSLAB"]);
+const STRUCTURAL_IFC_TYPES = new Set(["IFCFOOTING", "IFCCOLUMN", "IFCBEAM", "IFCSLAB", "IFCSTAIR"]);
 
 interface MeshRenderEntry {
   mesh: THREE.Mesh;
@@ -351,15 +351,17 @@ export default function TabVisor3DBIM({
 
   const rebarSummary = useMemo(() => {
     if (!parsedModel) {
-      return { hasRebar: false, totalKg: 0, count: 0, footings: 0, columns: 0, beams: 0, slabs: 0 };
+      return { hasRebar: false, totalKg: 0, count: 0, footings: 0, pedestals: 0, columns: 0, beams: 0, slabs: 0, stairs: 0 };
     }
     let hasRebar = false;
     let totalKg = 0;
     let count = 0;
     let footings = 0;
+    let pedestals = 0;
     let columns = 0;
     let beams = 0;
     let slabs = 0;
+    let stairs = 0;
 
     for (const el of parsedModel.elements) {
       if (el.parts.some((p) => p.isRebar)) hasRebar = true;
@@ -368,6 +370,7 @@ export default function TabVisor3DBIM({
       count++;
       totalKg += spec.estimatedSteelKg;
       if (spec.elementCategory === "footing") footings++;
+      else if (spec.elementCategory === "pedestal") pedestals++;
       else if (spec.elementCategory === "column") columns++;
       else if (
         spec.elementCategory === "grade_beam" ||
@@ -376,8 +379,9 @@ export default function TabVisor3DBIM({
       )
         beams++;
       else if (spec.elementCategory === "slab") slabs++;
+      else if (spec.elementCategory === "stair") stairs++;
     }
-    return { hasRebar, totalKg, count, footings, columns, beams, slabs };
+    return { hasRebar, totalKg, count, footings, pedestals, columns, beams, slabs, stairs };
   }, [parsedModel]);
 
   useEffect(() => {
@@ -1383,29 +1387,49 @@ export default function TabVisor3DBIM({
               <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                 {[
                   {
-                    q: isEn ? "Spread Footing" : "Zapata Cimentación",
+                    q: isEn ? "Spread Footing" : "Zapata",
                     label: isEn
-                      ? `${rebarSummary.footings} Footings (#4 @ 6" + 8#5 Dowels • c=3.0")`
-                      : `${rebarSummary.footings} Zapatas (Parrilla #4 @ 15cm + 8#5 Arranques • Rec. 75mm)`,
+                      ? `${rebarSummary.footings} Footings (#4/#5 @ 6" • c=3.0")`
+                      : `${rebarSummary.footings} Zapatas (#4/#5 @ 15cm • Rec. 75mm)`,
                   },
+                  ...(rebarSummary.pedestals > 0
+                    ? [
+                        {
+                          q: isEn ? "Pedestal" : "Pedestal",
+                          label: isEn
+                            ? `${rebarSummary.pedestals} Pedestals 16"×16" (8#4 + #3 @ 4")`
+                            : `${rebarSummary.pedestals} Pedestales 40×40 (8#4 + #3 @ 10cm)`,
+                        },
+                      ]
+                    : []),
                   {
                     q: isEn ? "Structural Column" : "Columna Estructural",
                     label: isEn
-                      ? `${rebarSummary.columns} Columns (8#5 • Lo=24" #3 @ 3.1" 135°)`
-                      : `${rebarSummary.columns} Columnas (8#5 • Lo=60cm #3 @ 8cm 135°)`,
+                      ? `${rebarSummary.columns} Columns 12"×12" (8#4 • Lo=20" #3 @ 4" 135°)`
+                      : `${rebarSummary.columns} Columnas 30×30 (8#4 • Lo=50cm #3 @ 10cm 135°)`,
                   },
                   {
-                    q: isEn ? "Grade Beam" : "Viga de Cimentación",
+                    q: isEn ? "Beam" : "Viga",
                     label: isEn
-                      ? `${rebarSummary.beams} Beams (Grade + Portal #4/#5 • #3 135°)`
-                      : `${rebarSummary.beams} Vigas Ciment. & Pórtico (#4/#5 • Est. #3 135°)`,
+                      ? `${rebarSummary.beams} Beams (VC/VE/VCU #4/#5 • #3 135°)`
+                      : `${rebarSummary.beams} Vigas VC/VE/VCU/VI (#4/#5 • Est. #3 135°)`,
                   },
                   {
-                    q: isEn ? "Porcelain Floor" : "Piso Porcelanato",
+                    q: isEn ? "Slab" : "Losa",
                     label: isEn
-                      ? `${rebarSummary.slabs} Slabs (#3 @ 10" Temp. Grid)`
-                      : `${rebarSummary.slabs} Placas (Malla Temp. #3 @ 25cm)`,
+                      ? `${rebarSummary.slabs} Slabs (#3 @ 8" 2-Way + #4 Cantilever)`
+                      : `${rebarSummary.slabs} Losas (#3 @ 20cm 2-Sent. + #4 Balcón)`,
                   },
+                  ...(rebarSummary.stairs > 0
+                    ? [
+                        {
+                          q: isEn ? "Stair" : "Escalera",
+                          label: isEn
+                            ? `${rebarSummary.stairs} U-Stair (#4 @ 6" / #3 @ 10")`
+                            : `${rebarSummary.stairs} Escalera U (#4 @ 15cm / #3 @ 25cm)`,
+                        },
+                      ]
+                    : []),
                 ].map((chip) => {
                   const isActiveFilter = searchQuery === chip.q;
                   return (

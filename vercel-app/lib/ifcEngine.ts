@@ -22,7 +22,15 @@ export interface StructuralNormCheck {
 }
 
 export interface StructuralRebarSpec {
-  elementCategory: "footing" | "column" | "grade_beam" | "beam" | "rafter" | "slab";
+  elementCategory:
+    | "footing"
+    | "pedestal"
+    | "column"
+    | "grade_beam"
+    | "beam"
+    | "rafter"
+    | "slab"
+    | "stair";
   codeColombia: string;
   codeUs: string;
   steelGradeEs: string;
@@ -532,18 +540,19 @@ export async function parseIfcFileBuffer(
 
 const IFC_TYPE_FALLBACK_KEYWORDS: Record<string, string[]> = {
   IFCCOVERING: ["cielo raso", "cielorraso", "ceiling"],
-  IFCFOOTING: ["zapata", "zapatas", "cimentacion", "solado"],
-  IFCCOLUMN: ["columna", "pedestal", "pedestales", "hea"],
-  IFCBEAM: ["viga", "vigas", "ipe", "viga cinta"],
-  IFCROOF: ["cubierta", "eternit", "teja", "techo"],
+  IFCFOOTING: ["zapata", "zapatas", "cimentacion", "solado", "pedestal"],
+  IFCCOLUMN: ["columna", "columnas", "pedestal", "pedestales", "portico"],
+  IFCBEAM: ["viga", "vigas", "cimentacion", "inclinada", "corona", "cumbrera"],
+  IFCMEMBER: ["correa", "correas", "pag", "perfil", "metalica"],
+  IFCROOF: ["cubierta", "upvc", "teja", "techo", "caballete"],
   IFCWALL: ["bloque", "mamposteria", "muro"],
   IFCWALLSTANDARDCASE: ["bloque", "mamposteria", "muro"],
   IFCWALLELEMENTEDCASE: ["bloque", "mamposteria", "muro"],
   IFCDOOR: ["puerta", "puertas"],
   IFCWINDOW: ["ventana", "ventanas", "ventaneria"],
-  IFCSLAB: ["placa", "losa", "plantilla", "porcelanato", "enchape", "solado"],
-  IFCSTAIR: ["escalera"],
-  IFCRAILING: ["baranda", "pasamano"],
+  IFCSLAB: ["placa", "losa", "contrapiso", "balcon", "porcelanato", "enchape", "solado"],
+  IFCSTAIR: ["escalera", "grada", "descanso"],
+  IFCRAILING: ["baranda", "pasamano", "balcon"],
 };
 
 function findBestBudgetRowMatch(
