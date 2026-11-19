@@ -191,7 +191,25 @@ def _calcular_insumos_desde_df(df_5d, campo_cant):
             continue
         act_n = normalizar_texto(str(r["Actividad"]))
         und = str(r.get("Unidad", "") or "").lower()
-        if "losa cubierta" in act_n or ("cubierta" in act_n and any(k in act_n for k in ["concreto", "pendiente", "impermeab"])):
+        if any(k in act_n for k in ["hidrosanitaria", "ntc 1500", "aparatos sanitarios"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tubería PVC Presión RDE 21 Ø 1½"–½" NTC 382', "Unidad": "ml", "Total_Teorico": c_calc * 5.2})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tubería PVC Sanitaria Ø 4"–2" NTC 1087 + Sifones', "Unidad": "ml", "Total_Teorico": c_calc * 3.8})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Aparatos Sanitarios Bajo Consumo + Tanque 1,000 L (RAS)", "Unidad": "Und", "Total_Teorico": c_calc})
+        elif any(k in act_n for k in ["retie", "retilap", "ntc 2050", "electricas"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Cable Cobre THHN/THWN Cal. 12–10 AWG (RETIE)", "Unidad": "ml", "Total_Teorico": c_calc * 16.0})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Ductería EMT + Bandeja Portacables + Tomas GFCI 20A", "Unidad": "Und", "Total_Teorico": c_calc})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Paneles LED Empotrados ≥100 lm/W (RETILAP)", "Unidad": "Und", "Total_Teorico": float(round(c_calc * 0.56))})
+        elif any(k in act_n for k in ["hvac", "ashrae", "climatizacion"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Unidad Condensadora Inverter 3 TR SEER 18 (ASHRAE 90.1)", "Unidad": "Und", "Total_Teorico": c_calc})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Ductería Galvanizada Cal. 24 Aislada R-6 + Difusores", "Unidad": "ml", "Total_Teorico": c_calc * 18.5})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Extractores Baños (50 CFM) + Campana Cocina (ASHRAE 62.1)", "Unidad": "Und", "Total_Teorico": c_calc * 3.0})
+        elif any(k in act_n for k in ["gas natural", "ntc 2505", "pe-al-pe"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tubería Gas PE-AL-PE Amarilla Ø 3/4"–1/2" (NTC 2505)', "Unidad": "ml", "Total_Teorico": c_calc * 6.5})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Centro Medición + Válvulas Corte + Calentador/Estufa", "Unidad": "Und", "Total_Teorico": c_calc})
+        elif any(k in act_n for k in ["contra incendios", "pci", "nsr-10 j"]):
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tubería Acero Céd. 40 Roja PCI Ø 1½" (NSR-10 Tít. J)', "Unidad": "ml", "Total_Teorico": c_calc * 12.0})
+            insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Detectores Humo (4), Extintor ABC 10 lb y Señal Evac. (Tít. K)", "Unidad": "Glb", "Total_Teorico": c_calc})
+        elif "losa cubierta" in act_n or ("cubierta" in act_n and any(k in act_n for k in ["concreto", "pendiente", "impermeab"])):
             insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", "Unidad": "m³", "Total_Teorico": c_calc * 0.12})
             insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Acero Refuerzo PDR-60 (Losa Cubierta #3 @ 0.20)", "Unidad": "kg", "Total_Teorico": c_calc * 11.2})
             insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Mortero Afine Impermeabilizado Pendiente 1% (1:3)", "Unidad": "m³", "Total_Teorico": c_calc * 0.055})
@@ -284,6 +302,16 @@ def _resolver_meta_apu(actividad, unidad=""):
     act_n = normalizar_texto(str(actividad or ""))
     u_norm = _normalizar_unidad(unidad)
 
+    if any(k in act_n for k in ["gas natural", "ntc 2505", "pe-al-pe", "calentador"]):
+        return {"meta_dia": 1.5, "und": "und/día", "cuadrilla": "Cuadrilla Gas NTC 2505: 1 Técnico Certificado + 1 Ayud"}
+    if any(k in act_n for k in ["contra incendios", "pci", "detectores humo", "extintor"]):
+        return {"meta_dia": 0.25, "und": "gl/día", "cuadrilla": "Cuadrilla PCI NSR-10 J/K: 1 Oficial + 1 Ayud"}
+    if any(k in act_n for k in ["hvac", "ashrae", "climatizacion", "ducteria", "condensadora"]):
+        return {"meta_dia": 0.2, "und": "gl/día", "cuadrilla": "Cuadrilla HVAC Mecánica: 2 Técnicos + 1 Ayud"}
+    if any(k in act_n for k in ["retie", "retilap", "ntc 2050", "electricas", "gfci", "luminarias"]):
+        return {"meta_dia": 4.0, "und": "und/día", "cuadrilla": "Cuadrilla Eléctrica RETIE: 1 Técnico + 1 Ayud"}
+    if any(k in act_n for k in ["hidrosanitaria", "ntc 1500", "aparatos sanitarios"]):
+        return {"meta_dia": 1.8, "und": "und/día", "cuadrilla": "Cuadrilla Hidrosanitaria NTC 1500: 1 Oficial + 1 Ayud"}
     if "alfaj" in act_n:
         return {"meta_dia": 20.0, "und": "ml/día", "cuadrilla": "Cuadrilla Mampostería & Remates: 1 Of + 1 Ayud"}
     if "bajante" in act_n or ("pvc" in act_n and any(k in act_n for k in ["agua lluvia", "pluvial", "sanitari"])):

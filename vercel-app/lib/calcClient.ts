@@ -60,6 +60,41 @@ export function resolverMetaApu(
   const uNorm = normalizarUnidad(unidad);
   const hasAny = (keys: string[]) => keys.some((k) => actN.includes(k));
 
+  if (hasAny(["gas natural", "ntc 2505", "pe-al-pe", "calentador"])) {
+    return {
+      meta_dia: 1.5,
+      und: "und/día",
+      cuadrilla: "Cuadrilla Gas NTC 2505: 1 Técnico Certificado + 1 Ayud",
+    };
+  }
+  if (hasAny(["contra incendios", "pci", "detectores humo", "extintor"])) {
+    return {
+      meta_dia: 0.25,
+      und: "gl/día",
+      cuadrilla: "Cuadrilla PCI NSR-10 J/K: 1 Oficial + 1 Ayud",
+    };
+  }
+  if (hasAny(["hvac", "ashrae", "climatizacion", "ducteria", "condensadora"])) {
+    return {
+      meta_dia: 0.2,
+      und: "gl/día",
+      cuadrilla: "Cuadrilla HVAC Mecánica: 2 Técnicos + 1 Ayud",
+    };
+  }
+  if (hasAny(["retie", "retilap", "ntc 2050", "electricas", "gfci", "luminarias"])) {
+    return {
+      meta_dia: 4.0,
+      und: "und/día",
+      cuadrilla: "Cuadrilla Eléctrica RETIE: 1 Técnico + 1 Ayud",
+    };
+  }
+  if (hasAny(["hidrosanitaria", "ntc 1500", "aparatos sanitarios"])) {
+    return {
+      meta_dia: 1.8,
+      und: "und/día",
+      cuadrilla: "Cuadrilla Hidrosanitaria NTC 1500: 1 Oficial + 1 Ayud",
+    };
+  }
   if (hasAny(["alfajia"])) {
     return {
       meta_dia: 20.0,
@@ -619,7 +654,25 @@ export function calcularConsolidacionLocal(
       const cCalc = Number(r[campo] || 0);
       if (cCalc <= 0) continue;
       const actN = normalizarTexto(r.Actividad);
-      if (actN.includes("losa cubierta") || (actN.includes("cubierta") && (actN.includes("concreto") || actN.includes("pendiente") || actN.includes("impermeab")))) {
+      if (actN.includes("hidrosanitaria") || actN.includes("ntc 1500") || actN.includes("aparatos sanitarios")) {
+        list.push({ Actividad: r.Actividad, Insumo: 'Tubería PVC Presión RDE 21 Ø 1½"–½" NTC 382', Unidad: "ml", Total_Teorico: cCalc * 5.2 });
+        list.push({ Actividad: r.Actividad, Insumo: 'Tubería PVC Sanitaria Ø 4"–2" NTC 1087 + Sifones', Unidad: "ml", Total_Teorico: cCalc * 3.8 });
+        list.push({ Actividad: r.Actividad, Insumo: "Aparatos Sanitarios Bajo Consumo + Tanque 1,000 L (RAS)", Unidad: "Und", Total_Teorico: cCalc });
+      } else if (actN.includes("retie") || actN.includes("retilap") || actN.includes("ntc 2050") || actN.includes("electricas")) {
+        list.push({ Actividad: r.Actividad, Insumo: "Cable Cobre THHN/THWN Cal. 12–10 AWG (RETIE)", Unidad: "ml", Total_Teorico: cCalc * 16.0 });
+        list.push({ Actividad: r.Actividad, Insumo: 'Ductería EMT + Bandeja Portacables + Tomas GFCI 20A', Unidad: "Und", Total_Teorico: cCalc });
+        list.push({ Actividad: r.Actividad, Insumo: "Paneles LED Empotrados ≥100 lm/W (RETILAP)", Unidad: "Und", Total_Teorico: Math.round(cCalc * 0.56) });
+      } else if (actN.includes("hvac") || actN.includes("ashrae") || actN.includes("climatizacion")) {
+        list.push({ Actividad: r.Actividad, Insumo: "Unidad Condensadora Inverter 3 TR SEER 18 (ASHRAE 90.1)", Unidad: "Und", Total_Teorico: cCalc });
+        list.push({ Actividad: r.Actividad, Insumo: "Ductería Galvanizada Cal. 24 Aislada R-6 + Difusores", Unidad: "ml", Total_Teorico: cCalc * 18.5 });
+        list.push({ Actividad: r.Actividad, Insumo: "Extractores Baños (50 CFM) + Campana Cocina (ASHRAE 62.1)", Unidad: "Und", Total_Teorico: cCalc * 3 });
+      } else if (actN.includes("gas natural") || actN.includes("ntc 2505") || actN.includes("pe-al-pe")) {
+        list.push({ Actividad: r.Actividad, Insumo: 'Tubería Gas PE-AL-PE Amarilla Ø 3/4"–1/2" (NTC 2505)', Unidad: "ml", Total_Teorico: cCalc * 6.5 });
+        list.push({ Actividad: r.Actividad, Insumo: "Centro Medición + Válvulas Corte + Calentador/Estufa", Unidad: "Und", Total_Teorico: cCalc });
+      } else if (actN.includes("contra incendios") || actN.includes("pci") || actN.includes("nsr-10 j")) {
+        list.push({ Actividad: r.Actividad, Insumo: 'Tubería Acero Céd. 40 Roja PCI Ø 1½" (NSR-10 Tít. J)', Unidad: "ml", Total_Teorico: cCalc * 12.0 });
+        list.push({ Actividad: r.Actividad, Insumo: "Detectores Humo (4), Extintor ABC 10 lb y Señal Evac. (Tít. K)", Unidad: "Glb", Total_Teorico: cCalc });
+      } else if (actN.includes("losa cubierta") || (actN.includes("cubierta") && (actN.includes("concreto") || actN.includes("pendiente") || actN.includes("impermeab")))) {
         list.push({ Actividad: r.Actividad, Insumo: "Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", Unidad: "m³", Total_Teorico: cCalc * 0.12 });
         list.push({ Actividad: r.Actividad, Insumo: "Acero Refuerzo PDR-60 (Losa Cubierta #3 @ 0.20)", Unidad: "kg", Total_Teorico: cCalc * 11.2 });
         list.push({ Actividad: r.Actividad, Insumo: "Mortero Afine Impermeabilizado Pendiente 1% (1:3)", Unidad: "m³", Total_Teorico: cCalc * 0.055 });

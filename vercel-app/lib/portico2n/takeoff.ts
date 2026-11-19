@@ -37,6 +37,9 @@ export interface PorticoTakeoffSummary {
   windowsCount: number;
   openingsCount: number;
   wallPaintAreaM2: number;
+  mepPlumbingFixturesCount: number;
+  mepElectricalPointsCount: number;
+  mepGasPointsCount: number;
 }
 
 function round2(n: number): number {
@@ -230,5 +233,8 @@ export function computePorticoTakeoffs(): PorticoTakeoffSummary {
     windowsCount,
     openingsCount: doorsCount + windowsCount,
     wallPaintAreaM2: round2(plasterAreaM2),
+    mepPlumbingFixturesCount: 7, // 2 WC, 2 Lavamanos, 1 Ducha, 1 Lavaplatos, 1 Tanque 1,000 L
+    mepElectricalPointsCount: 16, // 2 Tableros, 3 GFCI, 2 Tomas dobles, 9 Luminarias LED RETILAP
+    mepGasPointsCount: 3, // 1 Medidor fachada, 1 Estufa 4 puestos, 1 Calentador paso 10 L/min
   };
 }
