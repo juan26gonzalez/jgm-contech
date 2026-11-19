@@ -181,6 +181,7 @@ const ES_TR: Translations = {
   tabs: {
     panel: "Panel Ejecutivo",
     visor3d: "Visor 3D BIM",
+    coordinacion_mep: "MEP & Clash (Navisworks)",
     habitaciones: "Habitaciones & Caja",
     presupuesto: "Presupuesto 5D (APU)",
     curva_s: "Curva S & Plazo 4D",
@@ -293,6 +294,7 @@ const EN_TR: Translations = {
   tabs: {
     panel: "Executive Dashboard",
     visor3d: "3D BIM Viewer",
+    coordinacion_mep: "MEP & Clash (Navisworks)",
     habitaciones: "Zones & Cashflow",
     presupuesto: "5D Budget (BOQ)",
     curva_s: "S-Curve & 4D Gantt",

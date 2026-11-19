@@ -12,6 +12,7 @@ import {
   Package,
   Radio,
   Receipt,
+  ScanSearch,
   ShieldCheck,
   Users,
   Wallet,
@@ -29,6 +30,7 @@ export type TabGroupKey =
 export const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string }>> = {
   panel: LayoutDashboard,
   visor3d: Box,
+  coordinacion_mep: ScanSearch,
   habitaciones: LayoutGrid,
   presupuesto: Calculator,
   curva_s: GanttChart,
@@ -46,7 +48,7 @@ export const TAB_ICONS: Record<TabKey, React.ComponentType<{ className?: string 
 
 export const TAB_GROUPS: { groupKey: TabGroupKey; keys: TabKey[] }[] = [
   { groupKey: "direction", keys: ["panel"] },
-  { groupKey: "bim3d", keys: ["visor3d", "habitaciones"] },
+  { groupKey: "bim3d", keys: ["visor3d", "coordinacion_mep", "habitaciones"] },
   {
     groupKey: "planning4d5d",
     keys: ["presupuesto", "curva_s", "insumos", "contratos"],

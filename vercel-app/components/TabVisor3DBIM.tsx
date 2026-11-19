@@ -22,6 +22,7 @@ import {
   Package,
   Palette,
   Radio,
+  ScanSearch,
   Search,
   ShieldCheck,
   Sparkles,
@@ -969,6 +970,15 @@ export default function TabVisor3DBIM({
               </span>
             </span>
           )}
+
+          <button
+            type="button"
+            onClick={() => onNavigateTab("coordinacion_mep")}
+            className="px-3.5 py-2 rounded-xl text-xs font-extrabold border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-800 inline-flex items-center gap-1.5 transition-colors"
+          >
+            <ScanSearch className="w-3.5 h-3.5 text-cyan-600" />
+            <span>{isEn ? "MEP & Clash (Navisworks)" : "MEP & Clash (Navisworks)"}</span>
+          </button>
 
           <label className="cursor-pointer steel-btn-primary px-3.5 py-2 rounded-xl text-xs font-extrabold inline-flex items-center gap-1.5">
             {loadingIfc ? (

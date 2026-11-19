@@ -8,6 +8,7 @@ import TabActasCorte from "../components/TabActasCorte";
 import TabBitacoraCloud from "../components/TabBitacoraCloud";
 import TabClientesCartera from "../components/TabClientesCartera";
 import TabContratosPDF from "../components/TabContratosPDF";
+import TabCoordinacionMEP from "../components/TabCoordinacionMEP";
 import TabCurvaS from "../components/TabCurvaS";
 import TabHabitacionesBIM from "../components/TabHabitacionesBIM";
 import TabInsumosBIM from "../components/TabInsumosBIM";
@@ -536,6 +537,12 @@ export default function GerenciaBim5DPage() {
             data={activeData}
             params={params}
             onNavigateTab={setActiveTab}
+            isDemo={isDemo}
+          />
+        )}
+        {activeTab === "coordinacion_mep" && (
+          <TabCoordinacionMEP
+            proyecto={proyectoActual}
             isDemo={isDemo}
           />
         )}

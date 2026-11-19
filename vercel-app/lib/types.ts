@@ -3,6 +3,7 @@ export type ProjectMode = "bim" | "presupuesto";
 export type TabKey =
   | "panel"
   | "visor3d"
+  | "coordinacion_mep"
   | "habitaciones"
   | "presupuesto"
   | "curva_s"
