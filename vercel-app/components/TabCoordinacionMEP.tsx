@@ -6,6 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import {
   AlertOctagon,
   AlertTriangle,
+  BookCheck,
   Box,
   CheckCircle2,
   Crosshair,
@@ -14,6 +15,7 @@ import {
   EyeOff,
   FileCode2,
   FileSpreadsheet,
+  Flame,
   Focus,
   Layers,
   Play,
@@ -37,7 +39,10 @@ import {
   getPortico2nStructuralTargets,
   ImportedNavisworksClash,
   MepDiscipline,
+  MepFixtureDef,
+  NORMATIVE_STANDARDS_CATALOG,
   parseNavisworksXmlReport,
+  PORTICO_2N_FIXTURES,
   PORTICO_2N_MEP_ELEMENTS,
   runMepClashDetection,
 } from "../lib/portico2n/mepEngine";
@@ -51,6 +56,7 @@ interface TabCoordinacionMEPProps {
 type StrDisplayMode = "xray" | "solid" | "hidden";
 type ArqDisplayMode = "hidden" | "ghost" | "solid";
 type ClashFilter = "all" | "str_mep" | "mep_mep" | "active" | "resolved";
+type CatalogView = "standards" | "fixtures";
 
 const STRUCTURAL_TYPES = new Set(["IFCFOOTING", "IFCCOLUMN", "IFCBEAM", "IFCSLAB", "IFCSTAIR"]);
 
@@ -85,7 +91,10 @@ export default function TabCoordinacionMEP({
   const [reviewIds, setReviewIds] = useState<Set<string>>(() => new Set());
   const [toleranceMm, setToleranceMm] = useState<number>(0);
   const [selectedClashId, setSelectedClashId] = useState<string | null>("CLH-001");
+  const [selectedFixtureId, setSelectedFixtureId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<ClashFilter>("all");
+  const [catalogView, setCatalogView] = useState<CatalogView>("standards");
+  const [fixtureDisciplineFilter, setFixtureDisciplineFilter] = useState<MepDiscipline | "ALL">("ALL");
   const [scanPulse, setScanPulse] = useState<boolean>(false);
   const [lastScanAt, setLastScanAt] = useState<string>(() =>
     new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -98,7 +107,10 @@ export default function TabCoordinacionMEP({
     HVAC: true,
     PLU: true,
     ELEC: true,
+    GAS: true,
+    PCI: true,
   });
+  const [showFixtures, setShowFixtures] = useState<boolean>(true);
   const [showClashMarkers, setShowClashMarkers] = useState<boolean>(true);
   const [dimOthersOnFocus, setDimOthersOnFocus] = useState<boolean>(true);
 
@@ -117,13 +129,15 @@ export default function TabCoordinacionMEP({
   const strGroupRef = useRef<THREE.Group | null>(null);
   const arqGroupRef = useRef<THREE.Group | null>(null);
   const mepGroupRef = useRef<THREE.Group | null>(null);
+  const fixtureGroupRef = useRef<THREE.Group | null>(null);
   const markerGroupRef = useRef<THREE.Group | null>(null);
   const animTargetRef = useRef<CameraAnimTarget | null>(null);
   const markerMeshesRef = useRef<THREE.Mesh[]>([]);
   const strMeshIndexRef = useRef<Map<string, THREE.Mesh[]>>(new Map());
   const mepMeshIndexRef = useRef<Map<string, THREE.Mesh[]>>(new Map());
+  const fixtureMeshIndexRef = useRef<Map<string, THREE.Mesh[]>>(new Map());
 
-  // Live geometric 3D clash detection (re-runs automatically whenever geometry or tolerance changes)
+  // Live geometric 3D clash detection
   const clashes = useMemo(
     () =>
       runMepClashDetection({
@@ -148,6 +162,11 @@ export default function TabCoordinacionMEP({
       return true;
     });
   }, [clashes, filterMode]);
+
+  const filteredFixtures = useMemo(() => {
+    if (fixtureDisciplineFilter === "ALL") return PORTICO_2N_FIXTURES;
+    return PORTICO_2N_FIXTURES.filter((f) => f.discipline === fixtureDisciplineFilter);
+  }, [fixtureDisciplineFilter]);
 
   const stats = useMemo(() => {
     const total = clashes.length;
@@ -181,19 +200,20 @@ export default function TabCoordinacionMEP({
     };
   }, [clashes]);
 
-  // Smoothly animate OrbitControls camera to a 3D focus point
-  const flyCameraTo = useCallback((pos: [number, number, number], target: [number, number, number]) => {
-    animTargetRef.current = {
-      pos: new THREE.Vector3(...pos),
-      target: new THREE.Vector3(...target),
-      progress: 0,
-    };
-  }, []);
+  const flyCameraTo = useCallback(
+    (pos: [number, number, number], target: [number, number, number]) => {
+      animTargetRef.current = {
+        pos: new THREE.Vector3(...pos),
+        target: new THREE.Vector3(...target),
+        progress: 0,
+      };
+    },
+    []
+  );
 
   const focusOnClash = useCallback(
     (clash: DetectedClash) => {
       const [x, y, z] = clash.point;
-      // Pick an unobstructed diagonal vantage vector based on quadrant
       const offsetX = x >= 0 ? 2.4 : -2.4;
       const offsetZ = z >= 0 ? 2.5 : -2.5;
       flyCameraTo([x + offsetX, Math.min(7.8, y + 1.35), z + offsetZ], [x, y, z]);
@@ -201,7 +221,18 @@ export default function TabCoordinacionMEP({
     [flyCameraTo]
   );
 
-  // Initialize Three.js WebGL scene + static PORTICO-2N STR/ARQ reference meshes once
+  const focusOnFixture = useCallback(
+    (fixture: MepFixtureDef) => {
+      setSelectedClashId(null);
+      setSelectedFixtureId(fixture.id);
+      setShowFixtures(true);
+      setVisibleMep((prev) => ({ ...prev, [fixture.discipline]: true }));
+      flyCameraTo(fixture.cameraPos, fixture.focusPoint);
+    },
+    [flyCameraTo]
+  );
+
+  // Initialize Three.js WebGL scene + static PORTICO-2N STR/ARQ + Fixtures meshes
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -220,7 +251,7 @@ export default function TabCoordinacionMEP({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.1;
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
@@ -229,29 +260,26 @@ export default function TabCoordinacionMEP({
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 2.8, 0);
-    controls.minDistance = 1.2;
+    controls.minDistance = 1.1;
     controls.maxDistance = 30;
     controls.update();
     controlsRef.current = controls;
 
-    // Cancel camera fly-to if user manually drags/zooms
     const stopAnim = () => {
       animTargetRef.current = null;
     };
     controls.addEventListener("start", stopAnim);
 
     // Engineering studio lighting
-    scene.add(new THREE.AmbientLight(0xdbeafe, 0.72));
-    const hemi = new THREE.HemisphereLight(0xf8fafc, 0x1e293b, 0.55);
-    scene.add(hemi);
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
+    scene.add(new THREE.AmbientLight(0xdbeafe, 0.78));
+    scene.add(new THREE.HemisphereLight(0xf8fafc, 0x1e293b, 0.58));
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.08);
     keyLight.position.set(11, 16, 10);
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.45);
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.48);
     fillLight.position.set(-10, 7, -9);
     scene.add(fillLight);
 
-    // Subtle engineering coordinate grid
     const grid = new THREE.GridHelper(18, 18, 0x334155, 0x1e293b);
     grid.position.y = -0.02;
     scene.add(grid);
@@ -259,24 +287,24 @@ export default function TabCoordinacionMEP({
     const strGroup = new THREE.Group();
     const arqGroup = new THREE.Group();
     const mepGroup = new THREE.Group();
+    const fixtureGroup = new THREE.Group();
     const markerGroup = new THREE.Group();
-    scene.add(strGroup, arqGroup, mepGroup, markerGroup);
+    scene.add(strGroup, arqGroup, mepGroup, fixtureGroup, markerGroup);
     strGroupRef.current = strGroup;
     arqGroupRef.current = arqGroup;
     mepGroupRef.current = mepGroup;
+    fixtureGroupRef.current = fixtureGroup;
     markerGroupRef.current = markerGroup;
 
-    // Build base PORTICO-2N structural + architectural meshes
+    // 1. Build base PORTICO-2N structural + architectural meshes
     const model = buildPortico2nIfcModel(proyecto.nombre, lang);
     const strTargets = getPortico2nStructuralTargets();
     const strIndex = new Map<string, THREE.Mesh[]>();
 
     for (const el of model.elements) {
-      // Skip BLL-1 from structural/arq because we render it cleanly inside the Plumbing MEP discipline
       if (el.meta.ifcType === "IFCPIPESEGMENT") continue;
       const isStr = STRUCTURAL_TYPES.has(el.meta.ifcType);
 
-      // Identify matching structural target ID (e.g. VE-B, VCU-2, VE-2, C1) for clash highlighting
       let matchedTargetId: string | null = null;
       if (isStr) {
         for (const t of strTargets) {
@@ -289,13 +317,13 @@ export default function TabCoordinacionMEP({
       }
 
       for (const part of el.parts) {
-        if (part.isRebar) continue; // Keep structural concrete clean for MEP coordination
+        if (part.isRebar) continue;
         const mat = new THREE.MeshStandardMaterial({
           color: isStr ? 0x94a3b8 : part.originalColor,
           roughness: 0.72,
           metalness: 0.08,
           transparent: true,
-          opacity: isStr ? 0.24 : 0.14,
+          opacity: isStr ? 0.22 : 0.14,
           depthWrite: false,
         });
         const mesh = new THREE.Mesh(part.geometry, mat);
@@ -318,7 +346,42 @@ export default function TabCoordinacionMEP({
     }
     strMeshIndexRef.current = strIndex;
 
-    // Responsive ResizeObserver
+    // 2. Build 3D Fixtures (Sanitaryware, Kitchen, GFCI, RETILAP LEDs, HVAC Diffusers, Gas & PCI)
+    const fixIndex = new Map<string, THREE.Mesh[]>();
+    const fixGeomsToDispose: THREE.BufferGeometry[] = [];
+    for (const fix of PORTICO_2N_FIXTURES) {
+      const meshes: THREE.Mesh[] = [];
+      for (const part of fix.parts) {
+        const geom = buildMepPartGeometry(part);
+        fixGeomsToDispose.push(geom);
+        const baseColor = part.colorOverride ?? fix.color;
+        const baseOpacity = part.opacity ?? 1.0;
+        const baseEmissive = part.emissive ?? 0x000000;
+        const mat = new THREE.MeshStandardMaterial({
+          color: baseColor,
+          roughness: 0.35,
+          metalness: 0.2,
+          emissive: baseEmissive,
+          emissiveIntensity: baseEmissive ? 0.65 : 0,
+          transparent: baseOpacity < 0.99,
+          opacity: baseOpacity,
+          depthWrite: baseOpacity >= 0.99,
+        });
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.userData = {
+          fixtureId: fix.id,
+          discipline: fix.discipline,
+          baseColor,
+          baseOpacity,
+          baseEmissive,
+        };
+        fixtureGroup.add(mesh);
+        meshes.push(mesh);
+      }
+      fixIndex.set(fix.id, meshes);
+    }
+    fixtureMeshIndexRef.current = fixIndex;
+
     const ro = new ResizeObserver(() => {
       if (!container || !cameraRef.current || !rendererRef.current) return;
       const w = container.clientWidth;
@@ -331,7 +394,6 @@ export default function TabCoordinacionMEP({
     });
     ro.observe(container);
 
-    // Animation loop with smooth fly-to camera interpolation + pulsing clash spheres
     let rafId = 0;
     const clock = new THREE.Clock();
 
@@ -352,7 +414,6 @@ export default function TabCoordinacionMEP({
         }
       }
 
-      // Pulse active clash spheres gently
       const scale = 1 + Math.sin(t * 4.2) * 0.14;
       for (const m of markerMeshesRef.current) {
         if (m.userData?.pulse) {
@@ -370,20 +431,19 @@ export default function TabCoordinacionMEP({
       ro.disconnect();
       controls.removeEventListener("start", stopAnim);
       controls.dispose();
-      // Dispose base model geometries
       for (const el of model.elements) {
         for (const p of el.parts) p.geometry.dispose();
       }
+      for (const g of fixGeomsToDispose) g.dispose();
       renderer.dispose();
     };
   }, [proyecto.nombre, lang]);
 
-  // Rebuild 3D MEP geometry meshes whenever resolvedIds changes
+  // Rebuild 3D MEP distribution meshes whenever resolvedIds changes
   useEffect(() => {
     const mepGroup = mepGroupRef.current;
     if (!mepGroup) return;
 
-    // Clear old MEP meshes cleanly
     while (mepGroup.children.length > 0) {
       const child = mepGroup.children[0] as THREE.Mesh;
       child.geometry?.dispose();
@@ -404,9 +464,9 @@ export default function TabCoordinacionMEP({
       for (const part of activeParts) {
         const geom = buildMepPartGeometry(part);
         const mat = new THREE.MeshStandardMaterial({
-          color: el.color,
+          color: part.colorOverride ?? el.color,
           roughness: el.discipline === "HVAC" ? 0.35 : 0.42,
-          metalness: el.discipline === "HVAC" ? 0.55 : 0.18,
+          metalness: el.discipline === "HVAC" ? 0.52 : 0.2,
           transparent: false,
           opacity: 1,
         });
@@ -414,7 +474,7 @@ export default function TabCoordinacionMEP({
         mesh.userData = {
           mepId: el.id,
           discipline: el.discipline,
-          baseColor: el.color,
+          baseColor: part.colorOverride ?? el.color,
         };
         mepGroup.add(mesh);
         meshes.push(mesh);
@@ -426,19 +486,20 @@ export default function TabCoordinacionMEP({
     mepMeshIndexRef.current = index;
   }, [resolvedIds]);
 
-  // Sync visibility, X-Ray mode, and Navisworks Red/Green clash focus highlighting
+  // Sync visibility, X-Ray mode, fixture focus & Navisworks Red/Green clash highlighting
   useEffect(() => {
     const strGroup = strGroupRef.current;
     const arqGroup = arqGroupRef.current;
     const mepGroup = mepGroupRef.current;
+    const fixtureGroup = fixtureGroupRef.current;
     const markerGroup = markerGroupRef.current;
-    if (!strGroup || !arqGroup || !mepGroup || !markerGroup) return;
+    if (!strGroup || !arqGroup || !mepGroup || !fixtureGroup || !markerGroup) return;
 
     const focusA = selectedClash?.elementAId || null;
     const focusB = selectedClash?.elementBId || null;
-    const isFocusing = Boolean(selectedClash && dimOthersOnFocus);
+    const isFocusingClash = Boolean(selectedClash && dimOthersOnFocus);
 
-    // 1. Structural visibility + Navisworks Item A crimson highlight
+    // 1. Structural visibility
     strGroup.visible = strMode !== "hidden";
     for (const child of strGroup.children) {
       const mesh = child as THREE.Mesh;
@@ -457,12 +518,12 @@ export default function TabCoordinacionMEP({
         mat.color.setHex(mesh.userData?.baseColor || 0x94a3b8);
         mat.emissive.setHex(0x000000);
         mat.emissiveIntensity = 0;
-        if (strMode === "solid" && !isFocusing) {
+        if (strMode === "solid" && !isFocusingClash) {
           mat.opacity = 0.92;
           mat.transparent = false;
           mat.depthWrite = true;
         } else {
-          mat.opacity = isFocusing ? 0.1 : 0.24;
+          mat.opacity = isFocusingClash ? 0.09 : 0.22;
           mat.transparent = true;
           mat.depthWrite = false;
         }
@@ -475,19 +536,19 @@ export default function TabCoordinacionMEP({
     for (const child of arqGroup.children) {
       const mesh = child as THREE.Mesh;
       const mat = mesh.material as THREE.MeshStandardMaterial;
-      if (arqMode === "solid" && !isFocusing) {
+      if (arqMode === "solid" && !isFocusingClash) {
         mat.opacity = 0.85;
         mat.transparent = true;
         mat.depthWrite = true;
       } else {
-        mat.opacity = isFocusing ? 0.05 : 0.14;
+        mat.opacity = isFocusingClash ? 0.05 : 0.14;
         mat.transparent = true;
         mat.depthWrite = false;
       }
       mat.needsUpdate = true;
     }
 
-    // 3. MEP visibility + Navisworks Item A (Red) / Item B (Green) clash highlighting
+    // 3. MEP networks visibility + clash highlighting
     for (const [mepId, meshes] of Array.from(mepMeshIndexRef.current.entries())) {
       for (const mesh of meshes) {
         const disc = mesh.userData.discipline as MepDiscipline;
@@ -505,12 +566,12 @@ export default function TabCoordinacionMEP({
           mat.opacity = 1.0;
           mat.transparent = false;
           mat.depthWrite = true;
-          mesh.visible = true; // Always show focused clash components
+          mesh.visible = true;
         } else {
           mat.color.setHex(mesh.userData.baseColor);
           mat.emissive.setHex(0x000000);
           mat.emissiveIntensity = 0;
-          if (isFocusing) {
+          if (isFocusingClash) {
             mat.opacity = 0.22;
             mat.transparent = true;
             mat.depthWrite = false;
@@ -524,7 +585,44 @@ export default function TabCoordinacionMEP({
       }
     }
 
-    // 4. Rebuild 3D Clash Markers (pulsing crimson/amber spheres + overlap wireframe box)
+    // 4. Fixtures visibility + soft dimming during clash isolation + glow when selected
+    fixtureGroup.visible = showFixtures;
+    for (const [fixId, meshes] of Array.from(fixtureMeshIndexRef.current.entries())) {
+      const isFocusedFixture = selectedFixtureId === fixId;
+      for (const mesh of meshes) {
+        const disc = mesh.userData.discipline as MepDiscipline;
+        mesh.visible = showFixtures && visibleMep[disc];
+        const mat = mesh.material as THREE.MeshStandardMaterial;
+        const baseOp = mesh.userData.baseOpacity as number;
+        const baseEm = mesh.userData.baseEmissive as number;
+
+        if (isFocusedFixture) {
+          mat.color.setHex(mesh.userData.baseColor);
+          mat.emissive.setHex(0x38bdf8);
+          mat.emissiveIntensity = 0.55;
+          mat.opacity = Math.max(0.7, baseOp);
+          mat.transparent = baseOp < 0.99;
+          mat.depthWrite = baseOp >= 0.99;
+        } else if (isFocusingClash) {
+          mat.color.setHex(mesh.userData.baseColor);
+          mat.emissive.setHex(baseEm);
+          mat.emissiveIntensity = baseEm ? 0.2 : 0;
+          mat.opacity = Math.min(baseOp, 0.22);
+          mat.transparent = true;
+          mat.depthWrite = false;
+        } else {
+          mat.color.setHex(mesh.userData.baseColor);
+          mat.emissive.setHex(baseEm);
+          mat.emissiveIntensity = baseEm ? 0.65 : 0;
+          mat.opacity = baseOp;
+          mat.transparent = baseOp < 0.99;
+          mat.depthWrite = baseOp >= 0.99;
+        }
+        mat.needsUpdate = true;
+      }
+    }
+
+    // 5. Rebuild 3D Clash Markers
     while (markerGroup.children.length > 0) {
       const obj = markerGroup.children[0] as THREE.Mesh;
       obj.geometry?.dispose();
@@ -544,7 +642,7 @@ export default function TabCoordinacionMEP({
         const isResolved = c.status === "resolved";
         const [px, py, pz] = c.point;
 
-        const radius = isSelected ? 0.28 : 0.19;
+        const radius = isSelected ? 0.27 : 0.18;
         const sphereColor = isResolved
           ? 0x10b981
           : c.severity === "critical"
@@ -564,14 +662,12 @@ export default function TabCoordinacionMEP({
         markerGroup.add(sphere);
         markerMeshesRef.current.push(sphere);
 
-        // Crisp inner core pin
-        const coreGeo = new THREE.SphereGeometry(isSelected ? 0.08 : 0.055, 12, 12);
+        const coreGeo = new THREE.SphereGeometry(isSelected ? 0.075 : 0.05, 12, 12);
         const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
         const core = new THREE.Mesh(coreGeo, coreMat);
         core.position.set(px, py, pz);
         markerGroup.add(core);
 
-        // Wireframe intersection bounding box on selected clash
         if (isSelected && !isResolved) {
           const [sx, sy, sz] = c.overlapSize;
           const boxGeo = new THREE.BoxGeometry(
@@ -592,9 +688,11 @@ export default function TabCoordinacionMEP({
     clashes,
     selectedClash,
     selectedClashId,
+    selectedFixtureId,
     strMode,
     arqMode,
     visibleMep,
+    showFixtures,
     showClashMarkers,
     dimOthersOnFocus,
     resolvedIds,
@@ -612,11 +710,8 @@ export default function TabCoordinacionMEP({
   const handleToggleResolve = (clashId: string) => {
     setResolvedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(clashId)) {
-        next.delete(clashId);
-      } else {
-        next.add(clashId);
-      }
+      if (next.has(clashId)) next.delete(clashId);
+      else next.add(clashId);
       return next;
     });
     setReviewIds((prev) => {
@@ -644,21 +739,22 @@ export default function TabCoordinacionMEP({
     setResolvedIds(new Set());
     setReviewIds(new Set());
     setToleranceMm(0);
+    setSelectedFixtureId(null);
     setSelectedClashId("CLH-001");
     flyCameraTo([8.6, 6.4, 9.2], [0, 2.8, 0]);
   };
 
   const handleSelectClash = (c: DetectedClash) => {
+    setSelectedFixtureId(null);
     setSelectedClashId(c.id);
     focusOnClash(c);
   };
 
-  // Export & Import handlers
   const handleExportNavisworksXml = () => {
     const xml = buildNavisworksXmlReport(proyecto.nombre, clashes, toleranceMm);
     downloadTextFile(
       xml,
-      `Navisworks_ClashReport_${proyecto.id}_PORTICO2N.xml`,
+      `Navisworks_ClashReport_${proyecto.id}_PORTICO2N_MEP.xml`,
       "application/xml;charset=utf-8"
     );
   };
@@ -749,6 +845,12 @@ export default function TabCoordinacionMEP({
     );
   };
 
+  // Count open clashes affecting a specific discipline for live normative badge
+  const openClashesForDiscipline = (disc: MepDiscipline) =>
+    clashes.filter(
+      (c) => c.status !== "resolved" && (c.disciplineA === disc || c.disciplineB === disc)
+    ).length;
+
   return (
     <div className="space-y-4">
       {/* Header Banner */}
@@ -757,10 +859,13 @@ export default function TabCoordinacionMEP({
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-700 border border-cyan-500/30">
               <ScanSearch className="w-3 h-3" />
-              {L("NAVISWORKS WORKFLOW • CLASH DETECTIVE 3D", "NAVISWORKS WORKFLOW • 3D CLASH DETECTIVE")}
+              {L(
+                "NAVISWORKS WORKFLOW • MEP INTEGRAL + APARATOS 3D",
+                "NAVISWORKS WORKFLOW • FULL MEP + 3D FIXTURES"
+              )}
             </span>
             <span className="text-[10px] font-mono text-slate-500">
-              PORTICO-2N • STR + HVAC + PLU + ELEC • ISO 19650 / BCF
+              RETIE · NTC 2050 · RETILAP · NTC 1500/RAS · ASHRAE 62.1/90.1 · NSR-10 J/K · NTC 2505
             </span>
             {isDemo && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
@@ -770,14 +875,14 @@ export default function TabCoordinacionMEP({
           </div>
           <h2 className="text-base sm:text-lg font-bold text-slate-900 mt-1">
             {L(
-              "Coordinación BIM MEP y Detección de Interferencias en Tiempo Real",
-              "MEP BIM Coordination & Real-Time 3D Clash Detection"
+              "Coordinación BIM MEP, Muebles Conectados y Cumplimiento Normativo",
+              "MEP BIM Coordination, Connected Fixtures & Code Compliance"
             )}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {L(
-              "Motor geométrico 3D (Box3 AABB) sobre el modelo PORTICO-2N para prevenir choques entre estructura e instalaciones antes de construir en obra.",
-              "Real 3D AABB geometric clash engine over PORTICO-2N to prevent structural & MEP collisions prior to field execution."
+              "5 especialidades (HVAC, Hidrosanitaria, Eléctrica/RETILAP, Gas Natural y PCI) con muebles sanitarios, cocina, luminarias y equipos conectados en 3D + Clash Detective real.",
+              "5 disciplines (HVAC, Plumbing, Electrical/RETILAP, Natural Gas & Fire PCI) with connected 3D fixtures, appliances & real-time AABB Clash Detective."
             )}
           </p>
         </div>
@@ -807,7 +912,7 @@ export default function TabCoordinacionMEP({
             title={L("Volver al estado inicial sin coordinar (Pre-BIM)", "Reset to Pre-BIM uncoordinated state")}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>{L("Pre-BIM", "Pre-BIM")}</span>
+            <span>Pre-BIM</span>
           </button>
         </div>
       </div>
@@ -856,20 +961,18 @@ export default function TabCoordinacionMEP({
         <div className="bento-card">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              {L("Críticas STR vs. MEP", "Critical STR vs. MEP")}
+              {L("Críticas (STR / GAS-RETIE)", "Critical (STR / GAS-RETIE)")}
             </span>
             <Box className="w-4 h-4 text-slate-500" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold kpi-num text-slate-900">{stats.criticalOpen}</span>
-            <span className="text-xs text-slate-500">
-              {L("NSR-10 C.6.3 / ACI 318", "ACI 318 / NSR-10")}
-            </span>
+            <span className="text-xs text-slate-500">NSR-10 · NTC 2505 · RETIE</span>
           </div>
           <p className="text-[11px] text-slate-500 mt-2">
             {stats.maxPenMm > 0
               ? `${L("Penetración máxima activa:", "Max active penetration:")} `
-              : L("Sin invasión a vigas ni columnas", "No beam or column penetrations")}
+              : L("Sin invasión a estructura ni gas-electricidad", "Zero structural or gas-electric conflicts")}
             {stats.maxPenMm > 0 && (
               <span className="font-mono font-bold text-rose-600">{stats.maxPenMm} mm</span>
             )}
@@ -885,12 +988,12 @@ export default function TabCoordinacionMEP({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold kpi-num text-slate-900">{stats.mepVsMepOpen}</span>
-            <span className="text-xs text-slate-500">{L("HVAC · Hidrosan. · RETIE", "HVAC · Plumb · NEC")}</span>
+            <span className="text-xs text-slate-500">HVAC · PLU · ELEC · GAS · PCI</span>
           </div>
           <p className="text-[11px] text-slate-500 mt-2">
             {L(
-              "Incluye cruces en plenum cielo raso y separación agua-electricidad.",
-              "Checks ceiling plenum crossings & wet-electrical code clearances."
+              `${PORTICO_2N_FIXTURES.length} grupos de muebles y equipos conectados en 3D.`,
+              `${PORTICO_2N_FIXTURES.length} connected 3D fixture & appliance assemblies.`
             )}
           </p>
         </div>
@@ -918,26 +1021,24 @@ export default function TabCoordinacionMEP({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
         {/* LEFT 7 COLS: 3D MODEL VIEWPORT + SELECTION TREE */}
         <div className="xl:col-span-7 bento-card p-3 sm:p-4 space-y-3">
-          {/* Navisworks Selection Tree & Discipline Toggles */}
+          {/* Navisworks Selection Tree & 5-Discipline Toggles */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80">
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-0.5">
                 <Layers className="w-3.5 h-3.5" />
-                {L("Capas:", "Layers:")}
+                {L("Árbol:", "Tree:")}
               </span>
 
-              {/* Structural Mode Cycle */}
               <button
                 type="button"
                 onClick={() =>
                   setStrMode((m) => (m === "xray" ? "solid" : m === "solid" ? "hidden" : "xray"))
                 }
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
                   strMode === "hidden"
                     ? "bg-slate-100 text-slate-400 border-slate-200"
                     : "bg-slate-900 text-white border-slate-800"
                 }`}
-                title={L("Alternar Estructura: Rayos X / Sólido / Oculto", "Cycle Structure: X-Ray / Solid / Hidden")}
               >
                 <span className="w-2 h-2 rounded-full bg-slate-400" />
                 <span>
@@ -946,17 +1047,16 @@ export default function TabCoordinacionMEP({
                     ? L("Rayos X", "X-Ray")
                     : strMode === "solid"
                     ? L("Sólido", "Solid")
-                    : L("Oculto", "Off")}
+                    : L("Off", "Off")}
                 </span>
               </button>
 
-              {/* Architectural Mode Cycle */}
               <button
                 type="button"
                 onClick={() =>
                   setArqMode((m) => (m === "hidden" ? "ghost" : m === "ghost" ? "solid" : "hidden"))
                 }
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
                   arqMode === "hidden"
                     ? "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"
                     : "bg-slate-700 text-white border-slate-700"
@@ -966,19 +1066,45 @@ export default function TabCoordinacionMEP({
                 <span>
                   ARQ:{" "}
                   {arqMode === "hidden"
-                    ? L("Oculto", "Off")
+                    ? "Off"
                     : arqMode === "ghost"
                     ? L("Fantasma", "Ghost")
                     : L("Sólido", "Solid")}
                 </span>
               </button>
 
-              {/* MEP Toggles */}
               {(
                 [
-                  { key: "HVAC", label: "HVAC (M)", dot: "bg-cyan-400", activeCls: "bg-cyan-500/15 text-cyan-800 border-cyan-500/40" },
-                  { key: "PLU", label: L("Hidrosan. (P)", "Plumbing (P)"), dot: "bg-blue-500", activeCls: "bg-blue-500/15 text-blue-800 border-blue-500/40" },
-                  { key: "ELEC", label: L("Eléctrica (E)", "Electrical (E)"), dot: "bg-red-500", activeCls: "bg-rose-500/15 text-rose-800 border-rose-500/40" },
+                  {
+                    key: "HVAC",
+                    label: "HVAC",
+                    dot: "bg-cyan-400",
+                    activeCls: "bg-cyan-500/15 text-cyan-800 border-cyan-500/40",
+                  },
+                  {
+                    key: "PLU",
+                    label: L("Hidrosan.", "Plumb"),
+                    dot: "bg-blue-500",
+                    activeCls: "bg-blue-500/15 text-blue-800 border-blue-500/40",
+                  },
+                  {
+                    key: "ELEC",
+                    label: L("Eléc./LED", "Elec/LED"),
+                    dot: "bg-red-500",
+                    activeCls: "bg-rose-500/15 text-rose-800 border-rose-500/40",
+                  },
+                  {
+                    key: "GAS",
+                    label: "Gas",
+                    dot: "bg-yellow-400",
+                    activeCls: "bg-yellow-400/20 text-amber-900 border-yellow-500/50",
+                  },
+                  {
+                    key: "PCI",
+                    label: "PCI",
+                    dot: "bg-rose-600",
+                    activeCls: "bg-pink-500/15 text-rose-800 border-rose-500/40",
+                  },
                 ] as const
               ).map((d) => {
                 const on = visibleMep[d.key];
@@ -987,7 +1113,7 @@ export default function TabCoordinacionMEP({
                     key={d.key}
                     type="button"
                     onClick={() => setVisibleMep((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
                       on ? d.activeCls : "bg-slate-50 text-slate-400 border-slate-200 line-through"
                     }`}
                   >
@@ -996,9 +1122,20 @@ export default function TabCoordinacionMEP({
                   </button>
                 );
               })}
+
+              <button
+                type="button"
+                onClick={() => setShowFixtures((v) => !v)}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
+                  showFixtures
+                    ? "bg-emerald-500/15 text-emerald-800 border-emerald-500/40"
+                    : "bg-slate-50 text-slate-400 border-slate-200 line-through"
+                }`}
+              >
+                <span>{L("Muebles 3D", "3D Fixtures")}</span>
+              </button>
             </div>
 
-            {/* Markers & Dim Focus toggles */}
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
@@ -1010,7 +1147,7 @@ export default function TabCoordinacionMEP({
                 }`}
               >
                 <Crosshair className="w-3 h-3" />
-                <span>{L("Esferas 3D", "3D Pins")}</span>
+                <span>{L("Esferas", "Pins")}</span>
               </button>
               <button
                 type="button"
@@ -1020,10 +1157,10 @@ export default function TabCoordinacionMEP({
                     ? "bg-indigo-500/15 text-indigo-700 border-indigo-500/30"
                     : "bg-slate-50 text-slate-500 border-slate-200"
                 }`}
-                title={L("Atenuar elementos no involucrados (estilo Navisworks Dim Other)", "Dim unrelated elements (Navisworks Dim Other)")}
+                title={L("Atenuar elementos no involucrados (estilo Navisworks Dim Other)", "Dim unrelated elements")}
               >
                 <Focus className="w-3 h-3" />
-                <span>{L("Aislar Clash", "Dim Other")}</span>
+                <span>{L("Aislar", "Dim")}</span>
               </button>
             </div>
           </div>
@@ -1032,15 +1169,16 @@ export default function TabCoordinacionMEP({
           <div className="relative rounded-xl overflow-hidden border border-slate-800 bg-[#0b1120]">
             <div ref={containerRef} className="w-full h-[460px] sm:h-[520px] cursor-grab active:cursor-grabbing" />
 
-            {/* Top-left floating camera presets */}
-            <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+            {/* Top-left floating camera presets (including Bathrooms & Kitchen close-ups!) */}
+            <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[92%]">
               {(
                 [
                   { label: L("Isométrica", "Isometric"), pos: [8.6, 6.4, 9.2], target: [0, 2.8, 0] },
-                  { label: L("Plenum N1", "L1 Plenum"), pos: [5.5, 2.8, 6.2], target: [-0.8, 2.5, 0.4] },
-                  { label: L("Nivel 2", "Level 2"), pos: [-6.8, 5.4, 6.4], target: [-0.5, 4.4, -0.5] },
+                  { label: L("Baño Social N1", "L1 Bath"), pos: [-1.1, 1.85, -0.6], target: [-3.2, 0.55, -2.7] },
+                  { label: L("Cocina & Gas", "Kitchen/Gas"), pos: [0.5, 2.25, -0.4], target: [-1.5, 1.0, -3.0] },
+                  { label: L("Baño 1 N2", "L2 Bath"), pos: [0.9, 4.9, -0.2], target: [-1.1, 3.65, -2.5] },
+                  { label: L("Plenum N1", "L1 Plenum"), pos: [5.5, 2.8, 6.2], target: [-0.4, 2.45, 0.8] },
                   { label: L("Cubierta", "Roof"), pos: [6.8, 9.2, 5.8], target: [-0.4, 5.9, -0.8] },
-                  { label: L("Planta", "Top"), pos: [0.01, 14.5, 0.01], target: [0, 3.0, 0] },
                 ] as Array<{ label: string; pos: [number, number, number]; target: [number, number, number] }>
               ).map((preset) => (
                 <button
@@ -1048,6 +1186,7 @@ export default function TabCoordinacionMEP({
                   type="button"
                   onClick={() => {
                     setSelectedClashId(null);
+                    setSelectedFixtureId(null);
                     flyCameraTo(preset.pos, preset.target);
                   }}
                   className="px-2 py-1 rounded-md text-[10px] font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 border border-slate-700/80 backdrop-blur-sm transition-colors"
@@ -1058,31 +1197,39 @@ export default function TabCoordinacionMEP({
             </div>
 
             {/* Bottom HUD Legend inside 3D Viewport */}
-            <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-950/80 border border-slate-800/90 backdrop-blur-sm text-[11px] text-slate-300">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-1.5">
+            <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-950/85 border border-slate-800/90 backdrop-blur-sm text-[10.5px] text-slate-300">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-sm bg-rose-500" />
-                  <span>{L("Elemento A (Choque)", "Item A (Clash)")}</span>
+                  <span>{L("Choque A", "Clash A")}</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1">
                   <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                  <span>{L("Elemento B / Resuelto", "Item B / Resolved")}</span>
+                  <span>{L("B / Resuelto", "B / Fixed")}</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
                   <span>HVAC</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                  <span>{L("Agua Fría", "Cold Water")}</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>{L("Agua", "Water")}</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                  <span>{L("Sanit. / Pluv.", "Sanit. / Rain")}</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span>{L("Sanit.", "Sanit.")}</span>
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                  <span>{L("Eléctrica", "Electrical")}</span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span>{L("Eléc.", "Elec.")}</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                  <span>Gas</span>
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-pink-600" />
+                  <span>PCI</span>
                 </span>
               </div>
               {selectedClash && (
@@ -1098,12 +1245,15 @@ export default function TabCoordinacionMEP({
           <div className="steel-subcard rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-xs font-bold text-slate-900">
-                {L("Interoperabilidad Navisworks Manage & OpenBIM (XML / CSV / BCF)", "Navisworks Manage & OpenBIM Bridge (XML / CSV / BCF)")}
+                {L(
+                  "Interoperabilidad Navisworks Manage & OpenBIM (XML / CSV / BCF)",
+                  "Navisworks Manage & OpenBIM Bridge (XML / CSV / BCF)"
+                )}
               </div>
               <p className="text-[11px] text-slate-500">
                 {L(
-                  "Exporta reportes compatibles con Navisworks Clash Detective o importa un archivo .xml exportado desde Navisworks real.",
-                  "Export Navisworks Clash Detective compatible reports or upload a real .xml exported from Navisworks Manage."
+                  "Exporta reportes compatibles con Navisworks Clash Detective o importa un .xml real exportado desde Navisworks.",
+                  "Export Navisworks Clash Detective reports or upload a real .xml exported from Navisworks Manage."
                 )}
               </p>
             </div>
@@ -1162,12 +1312,16 @@ export default function TabCoordinacionMEP({
 
         {/* RIGHT 5 COLS: CLASH DETECTIVE MATRIX + ENGINEERING INSPECTOR */}
         <div className="xl:col-span-5 bento-card p-3 sm:p-4 space-y-3">
-          {/* Tolerance Control & Filter Bar */}
           <div className="space-y-2.5 pb-2.5 border-b border-slate-200/80">
             <div className="flex items-center justify-between gap-2">
               <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 <ScanSearch className="w-4 h-4 text-emerald-600" />
-                <span>{L("Matriz Clash Detective (6 Pruebas)", "Clash Detective Matrix (6 Rules)")}</span>
+                <span>
+                  {L(
+                    `Matriz Clash Detective (${stats.total} Pruebas)`,
+                    `Clash Detective Matrix (${stats.total} Rules)`
+                  )}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-[11px]">
                 <span className="text-slate-500">{L("Tolerancia:", "Tolerance:")}</span>
@@ -1178,9 +1332,7 @@ export default function TabCoordinacionMEP({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-[10px] text-slate-500 shrink-0">
-                {L("0 mm (Hard)", "0 mm (Hard)")}
-              </span>
+              <span className="text-[10px] text-slate-500 shrink-0">0 mm (Hard)</span>
               <input
                 type="range"
                 min={0}
@@ -1191,11 +1343,10 @@ export default function TabCoordinacionMEP({
                 className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
               />
               <span className="text-[10px] text-slate-500 shrink-0">
-                {L("60 mm (Holgura)", "60 mm (Clearance)")}
+                {L("60 mm (Holgura)", "60 mm (Clear.)")}
               </span>
             </div>
 
-            {/* Filter Pills */}
             <div className="flex flex-wrap gap-1">
               {(
                 [
@@ -1223,7 +1374,7 @@ export default function TabCoordinacionMEP({
           </div>
 
           {/* Clash Results Scrollable List */}
-          <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
             {filteredClashes.length === 0 ? (
               <div className="text-center py-8 text-xs text-slate-500">
                 {L("No hay interferencias en este filtro.", "No clashes match this filter.")}
@@ -1359,7 +1510,9 @@ export default function TabCoordinacionMEP({
                   ) : (
                     <>
                       <Wrench className="w-3.5 h-3.5" />
-                      <span>{L("Aplicar Rerouting 3D (Resolver)", "Apply 3D Rerouting (Resolve)")}</span>
+                      <span>
+                        {L("Aplicar Rerouting 3D (Resolver)", "Apply 3D Rerouting (Resolve)")}
+                      </span>
                     </>
                   )}
                 </button>
@@ -1383,18 +1536,221 @@ export default function TabCoordinacionMEP({
         </div>
       </div>
 
-      {/* Imported External Navisworks Manage XML Table (appears when user uploads a .xml file) */}
+      {/* REGULATORY COMPLIANCE MATRIX & CONNECTED 3D FIXTURES CATALOG */}
+      <div className="bento-card space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+              <BookCheck className="w-4 h-4 text-emerald-600" />
+              <span>
+                {L(
+                  "Cumplimiento Normativo Residencial & Muebles Conectados a Redes 3D",
+                  "Residential Code Compliance & Connected 3D Fixtures Inventory"
+                )}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {L(
+                "Haz clic en cualquier normativa o aparato sanitario/eléctrico/gas/PCI para enfocar la cámara 3D directo a su conexión.",
+                "Click any regulatory card or connected fixture to fly the 3D camera straight to its pipe/conduit connection."
+              )}
+            </p>
+          </div>
+
+          <div className="inline-flex rounded-lg bg-slate-100 p-0.5 border border-slate-200 text-xs font-semibold shrink-0">
+            <button
+              type="button"
+              onClick={() => setCatalogView("standards")}
+              className={`px-3 py-1.5 rounded-md transition-colors ${
+                catalogView === "standards"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {L("Normativa Aplicada (6)", "Applied Codes (6)")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCatalogView("fixtures")}
+              className={`px-3 py-1.5 rounded-md transition-colors ${
+                catalogView === "fixtures"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {L(
+                `Muebles & Equipos Conectados (${PORTICO_2N_FIXTURES.length})`,
+                `Connected Fixtures (${PORTICO_2N_FIXTURES.length})`
+              )}
+            </button>
+          </div>
+        </div>
+
+        {catalogView === "standards" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {NORMATIVE_STANDARDS_CATALOG.map((std) => {
+              const openCount = openClashesForDiscipline(std.discipline);
+              const isCompliant = openCount === 0;
+              return (
+                <div
+                  key={std.id}
+                  className="steel-subcard rounded-xl p-3.5 border border-slate-200 flex flex-col justify-between gap-2.5"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className="inline-flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md text-white"
+                        style={{ backgroundColor: std.colorHex }}
+                      >
+                        {std.discipline === "GAS" || std.discipline === "PCI" ? (
+                          <Flame className="w-3 h-3" />
+                        ) : (
+                          <ShieldCheck className="w-3 h-3" />
+                        )}
+                        <span>{std.code}</span>
+                      </span>
+                      {isCompliant ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {L("Cumple 3D", "3D OK")}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                          <AlertTriangle className="w-3 h-3" />
+                          {openCount} {L("clash", "clash")}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xs font-bold text-slate-900 mt-2">
+                      {isEn ? std.titleEn : std.titleEs}
+                    </h3>
+                    <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                      {isEn ? std.requirementsEn : std.requirementsEs}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedClashId(null);
+                      setSelectedFixtureId(null);
+                      setShowFixtures(true);
+                      setVisibleMep((prev) => ({ ...prev, [std.discipline]: true }));
+                      flyCameraTo(std.cameraPos, std.focusPoint);
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 transition-colors"
+                  >
+                    <Crosshair className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{L("Inspeccionar Especialidad en 3D", "Inspect Specialty in 3D")}</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                [
+                  { id: "ALL", label: `${L("Todos", "All")} (${PORTICO_2N_FIXTURES.length})` },
+                  { id: "PLU", label: L("Hidrosanitaria (NTC 1500/RAS)", "Plumbing (NTC 1500)") },
+                  { id: "ELEC", label: L("Eléctrica & RETILAP", "Electrical & RETILAP") },
+                  { id: "HVAC", label: "HVAC (ASHRAE 62.1/90.1)" },
+                  { id: "GAS", label: "Gas Natural (NTC 2505)" },
+                  { id: "PCI", label: "PCI (NSR-10 Tít. J/K)" },
+                ] as Array<{ id: MepDiscipline | "ALL"; label: string }>
+              ).map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFixtureDisciplineFilter(f.id)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                    fixtureDisciplineFilter === f.id
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500">
+                    <th className="py-2 pr-3">{L("Mueble / Equipo 3D", "3D Fixture / Equipment")}</th>
+                    <th className="py-2 pr-3">{L("Espacio", "Room")}</th>
+                    <th className="py-2 pr-3">{L("Conexión a Red / Tubería", "Network Connection")}</th>
+                    <th className="py-2 pr-3">{L("Normativa", "Code")}</th>
+                    <th className="py-2 text-right">{L("Cámara", "View")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredFixtures.map((fix) => {
+                    const active = selectedFixtureId === fix.id;
+                    return (
+                      <tr
+                        key={fix.id}
+                        className={active ? "bg-cyan-500/10" : "hover:bg-slate-50"}
+                      >
+                        <td className="py-2 pr-3">
+                          <div className="font-semibold text-slate-900">
+                            {isEn ? fix.nameEn : fix.nameEs}
+                          </div>
+                          <div className="text-[10.5px] text-slate-500">
+                            {isEn ? fix.normDetailEn : fix.normDetailEs}
+                          </div>
+                        </td>
+                        <td className="py-2 pr-3 text-slate-700 whitespace-nowrap">
+                          {isEn ? fix.roomEn : fix.roomEs}
+                        </td>
+                        <td className="py-2 pr-3 font-mono text-[10.5px] text-slate-600">
+                          {isEn ? fix.connectedToEn : fix.connectedToEs}
+                        </td>
+                        <td className="py-2 pr-3 whitespace-nowrap">
+                          <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">
+                            {fix.normCode}
+                          </span>
+                        </td>
+                        <td className="py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => focusOnFixture(fix)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10.5px] font-semibold bg-white hover:bg-slate-100 text-slate-800 border border-slate-200"
+                          >
+                            <Crosshair className="w-3 h-3 text-cyan-600" />
+                            <span>{L("Ver 3D", "Focus")}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Imported External Navisworks Manage XML Table */}
       {importedXmlClashes.length > 0 && (
         <div className="bento-card space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                {L("Reporte Importado desde Autodesk Navisworks Manage", "Imported Autodesk Navisworks Manage Report")}{" "}
+                {L(
+                  "Reporte Importado desde Autodesk Navisworks Manage",
+                  "Imported Autodesk Navisworks Manage Report"
+                )}{" "}
                 <span className="font-mono text-xs text-cyan-700">({importedXmlFile})</span>
               </h3>
               <p className="text-xs text-slate-500">
                 {importedXmlClashes.length}{" "}
-                {L("interferencias leídas del archivo XML.", "clash results parsed from uploaded XML.")}
+                {L(
+                  "interferencias leídas del archivo XML.",
+                  "clash results parsed from uploaded XML."
+                )}
               </p>
             </div>
             <button
@@ -1418,7 +1774,7 @@ export default function TabCoordinacionMEP({
                   <th className="py-2 pr-3">{L("Nombre Clash", "Clash Name")}</th>
                   <th className="py-2 pr-3">{L("Elemento A ↔ B", "Item A ↔ B")}</th>
                   <th className="py-2 pr-3">{L("Ubicación", "Grid")}</th>
-                  <th className="py-2 pr-3 text-right">{L("Dist. (mm)", "Dist. (mm)")}</th>
+                  <th className="py-2 pr-3 text-right">Dist. (mm)</th>
                   <th className="py-2 text-right">{L("Estado", "Status")}</th>
                 </tr>
               </thead>

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { PORTICO_2N_SPEC } from "./takeoff";
 
-export type MepDiscipline = "HVAC" | "PLU" | "ELEC";
+export type MepDiscipline = "HVAC" | "PLU" | "ELEC" | "GAS" | "PCI";
 export type BimDiscipline = "STR" | "ARQ" | MepDiscipline;
 export type ClashSeverity = "critical" | "major" | "minor";
 export type ClashWorkflowStatus = "active" | "review" | "resolved";
@@ -14,6 +14,9 @@ export interface MepBoxPart {
   w: number;
   h: number;
   d: number;
+  colorOverride?: number;
+  emissive?: number;
+  opacity?: number;
 }
 
 export interface MepPipePart {
@@ -21,6 +24,9 @@ export interface MepPipePart {
   p0: [number, number, number];
   p1: [number, number, number];
   radius: number;
+  colorOverride?: number;
+  emissive?: number;
+  opacity?: number;
 }
 
 export type MepPartGeom = MepBoxPart | MepPipePart;
@@ -35,13 +41,16 @@ export interface MepElementDef {
     | "sanitary"
     | "rainwater"
     | "electrical_tray"
-    | "electrical_panel";
+    | "electrical_panel"
+    | "gas_line"
+    | "pci_line";
   nameEs: string;
   nameEn: string;
   levelEs: string;
   levelEn: string;
   specEs: string;
   specEn: string;
+  normRef: string;
   color: number;
   /** Default Pre-BIM geometry parts (may collide with STR or other MEP) */
   parts: MepPartGeom[];
@@ -49,6 +58,40 @@ export interface MepElementDef {
   clashRuleId?: string;
   /** Coordinated BIM geometry parts applied when clashRuleId is resolved */
   resolvedParts?: MepPartGeom[];
+}
+
+export interface MepFixtureDef {
+  id: string;
+  discipline: MepDiscipline;
+  category: "sanitary" | "kitchen" | "electrical" | "lighting" | "hvac" | "gas" | "pci";
+  roomEs: string;
+  roomEn: string;
+  levelEs: string;
+  levelEn: string;
+  nameEs: string;
+  nameEn: string;
+  connectedToEs: string;
+  connectedToEn: string;
+  normCode: string;
+  normDetailEs: string;
+  normDetailEn: string;
+  color: number;
+  focusPoint: [number, number, number];
+  cameraPos: [number, number, number];
+  parts: MepPartGeom[];
+}
+
+export interface NormativeStandardSummary {
+  id: string;
+  discipline: MepDiscipline;
+  code: string;
+  titleEs: string;
+  titleEn: string;
+  requirementsEs: string;
+  requirementsEn: string;
+  colorHex: string;
+  focusPoint: [number, number, number];
+  cameraPos: [number, number, number];
 }
 
 export interface StructuralTargetBox {
@@ -106,17 +149,11 @@ export interface DetectedClash {
   solutionEn: string;
   normRef: string;
   reworkSavingsCop: number;
-  /** Computed live from Three.js Box3 intersection */
   currentlyColliding: boolean;
-  /** Exact penetration depth in millimeters (0 when resolved) */
   penetrationMm: number;
-  /** 3D intersection centroid (x, y, z) in meters */
   point: [number, number, number];
-  /** Intersection bounding box size in meters */
   overlapSize: [number, number, number];
-  /** Workflow status */
   status: ClashWorkflowStatus;
-  /** Imported from external Navisworks XML? */
   importedFromXml?: boolean;
 }
 
@@ -138,6 +175,8 @@ export const DISCIPLINE_COLORS: Record<BimDiscipline, string> = {
   HVAC: "#06b6d4",
   PLU: "#2563eb",
   ELEC: "#ef4444",
+  GAS: "#eab308",
+  PCI: "#e11d48",
 };
 
 /**
@@ -208,7 +247,7 @@ export function getPortico2nStructuralTargets(): StructuralTargetBox[] {
   }
 
   for (const bm of s.beams) {
-    if (bm.type === "VC") continue; // Grade beams below slab
+    if (bm.type === "VC") continue;
     const spec = s.beamTypes[bm.type as keyof typeof s.beamTypes];
     const isX = bm.axis === "x";
     const x0 = isX ? Math.min(bm.from, bm.to) : bm.line - spec.b / 2;
@@ -262,28 +301,31 @@ export function getPortico2nStructuralTargets(): StructuralTargetBox[] {
 }
 
 /**
- * Full 3D MEP Network for PORTICO-2N (HVAC + Plumbing/Rainwater + Electrical).
- * Coordinates are mathematically aligned to rooms (Cocina, Baño Social, Baño N2,
- * Sala, Comedor, Habitaciones, Cubierta L-2) and structural grid axes 1-2-3 / A-B-C.
+ * Full 3D MEP Distribution Network for PORTICO-2N:
+ * - HVAC (ASHRAE 62.1 & 90.1 / NTC)
+ * - Plumbing & Rainwater (NTC 1500 & RAS)
+ * - Electrical & Lighting (RETIE / NTC 2050 / RETILAP)
+ * - Natural Gas (NTC 2505)
+ * - Fire Protection PCI (NSR-10 Títulos J y K / NFPA 13-72)
  */
 export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
   // =========================================================================
-  // 1. HVAC / MECHANICAL (M) — CYAN / GALVANIZED STEEL
+  // 1. HVAC / MECHANICAL (M) — ASHRAE 62.1 & 90.1 / NTC
   // =========================================================================
   {
     id: "HVAC-COND",
     discipline: "HVAC",
     subSystem: "hvac_equip",
-    nameEs: "Unidad Condensadora HVAC Cubierta (3 TR Inverter)",
-    nameEn: "Rooftop HVAC Condensing Unit (3-Ton Inverter)",
+    nameEs: "Unidad Condensadora HVAC Cubierta (3 TR Inverter SEER 18)",
+    nameEn: "Rooftop HVAC Condensing Unit (3-Ton Inverter SEER 18)",
     levelEs: "Cubierta (+5.88 m)",
     levelEn: "Roof (+5.88 m)",
     specEs: "Base concreto 10 cm + amortiguadores neopreno",
-    specEn: "4\" concrete housekeeping pad + vibration isolators",
+    specEn: "4\" concrete pad + neoprene vibration isolators",
+    normRef: "ASHRAE 90.1 (Eficiencia Energética) / NTC",
     color: 0x0891b2,
     parts: [
       { kind: "box", x: -1.9, y: 6.26, z: -2.05, w: 0.96, h: 0.68, d: 0.52 },
-      // Vertical supply plenum dropping cleanly through L-2 opening into N2 plenum
       { kind: "box", x: -1.9, y: 5.72, z: -2.05, w: 0.32, h: 0.56, d: 0.26 },
     ],
   },
@@ -295,13 +337,15 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     nameEn: "Level 2 Main HVAC Supply Trunk (32×12 cm)",
     levelEs: "Nivel 2 (Plenum +5.42 m)",
     levelEn: "Level 2 (Plenum +5.42 m)",
-    specEs: "Lámina galvanizada cal. 24 + aislamiento térmico",
-    specEn: "24-ga galvanized sheet metal + thermal liner",
+    specEs: "Lámina galvanizada cal. 24 + aislamiento R-6",
+    specEn: "24-ga galvanized sheet metal + R-6 insulation",
+    normRef: "ASHRAE 62.1 / ASHRAE 90.1",
     color: 0x06b6d4,
     parts: [
       { kind: "box", x: -1.9, y: 5.42, z: 0.05, w: 0.32, h: 0.12, d: 4.35 },
-      // Vertical riser shaft connecting N2 plenum down to N1 HVAC trunk (inside Cocina wall zone)
       { kind: "box", x: -1.9, y: 4.08, z: -1.65, w: 0.28, h: 2.68, d: 0.22 },
+      // Branch stub to Hab. 3 diffuser
+      { kind: "box", x: -2.28, y: 5.42, z: -1.6, w: 0.76, h: 0.1, d: 0.2 },
     ],
   },
   {
@@ -314,11 +358,10 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 2 (Plenum)",
     specEs: "Ducto rectangular alimentación Zona Este N2",
     specEn: "Rectangular supply branch to East Zone L2",
+    normRef: "ASHRAE 62.1 / NSR-10 C.6.3",
     color: 0x22d3ee,
     clashRuleId: "CLH-002",
-    // PRE-BIM: runs at y = 5.58 (y in [5.49, 5.67]), colliding directly with roof beam VCU-2 (y: 5.50..5.80)
     parts: [{ kind: "box", x: 0.15, y: 5.58, z: 1.75, w: 4.1, h: 0.18, d: 0.28 }],
-    // COORDINATED: flat low-profile transition 36x10 cm tucked cleanly at y = 5.42 (30mm below VCU-2)
     resolvedParts: [{ kind: "box", x: 0.15, y: 5.42, z: 1.75, w: 4.1, h: 0.1, d: 0.36 }],
   },
   {
@@ -331,17 +374,16 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 1 (+2.74 m)",
     specEs: "Alimentación Cocina → Sala (Eje 1–2)",
     specEn: "Kitchen → Living Room supply trunk (Grid 1–2)",
+    normRef: "ASHRAE 62.1 / NSR-10 C.6.3",
     color: 0x06b6d4,
     clashRuleId: "CLH-001",
-    // PRE-BIM: straight through beam VE-B (z in [-0.15, +0.15], y in [2.60, 3.00]) at y = 2.74
     parts: [{ kind: "box", x: -1.9, y: 2.74, z: 0.25, w: 0.32, h: 0.2, d: 3.7 }],
-    // COORDINATED: 5-segment realistic soffit drop passing 80 mm clear underneath beam VE-B
     resolvedParts: [
-      { kind: "box", x: -1.9, y: 2.74, z: -0.975, w: 0.32, h: 0.2, d: 1.25 }, // z: -1.60 -> -0.35
-      { kind: "box", x: -1.9, y: 2.58, z: -0.35, w: 0.32, h: 0.42, d: 0.2 }, // vertical drop
-      { kind: "box", x: -1.9, y: 2.42, z: 0.0, w: 0.32, h: 0.2, d: 0.88 }, // pass under VE-B (y: 2.32..2.52 < 2.60)
-      { kind: "box", x: -1.9, y: 2.58, z: 0.35, w: 0.32, h: 0.42, d: 0.2 }, // vertical rise
-      { kind: "box", x: -1.9, y: 2.74, z: 1.225, w: 0.32, h: 0.2, d: 1.75 }, // z: +0.35 -> +2.10
+      { kind: "box", x: -1.9, y: 2.74, z: -0.975, w: 0.32, h: 0.2, d: 1.25 },
+      { kind: "box", x: -1.9, y: 2.58, z: -0.35, w: 0.32, h: 0.42, d: 0.2 },
+      { kind: "box", x: -1.9, y: 2.42, z: 0.0, w: 0.32, h: 0.2, d: 0.88 },
+      { kind: "box", x: -1.9, y: 2.58, z: 0.35, w: 0.32, h: 0.42, d: 0.2 },
+      { kind: "box", x: -1.9, y: 2.74, z: 1.225, w: 0.32, h: 0.2, d: 1.75 },
     ],
   },
   {
@@ -354,27 +396,28 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 1 (+2.46 m)",
     specEs: "Cruce bajo viga VE-2 hacia difusores Comedor",
     specEn: "Branch under beam VE-2 serving Dining diffusers",
+    normRef: "ASHRAE 62.1 / 90.1",
     color: 0x22d3ee,
-    // Passes cleanly under VE-2 (y: 2.38..2.54 < 2.60)
     parts: [
-      { kind: "box", x: -1.9, y: 2.6, z: 1.8, w: 0.26, h: 0.36, d: 0.24 }, // drop connector from HVAC-N1-MAIN
+      { kind: "box", x: -1.9, y: 2.6, z: 1.8, w: 0.26, h: 0.36, d: 0.24 },
       { kind: "box", x: 0.15, y: 2.46, z: 1.8, w: 4.1, h: 0.16, d: 0.26 },
     ],
   },
 
   // =========================================================================
-  // 2. PLUMBING & RAINWATER (P) — POTABLE BLUE / SANITARY AMBER / RAIN YELLOW
+  // 2. PLUMBING & RAINWATER (P) — NTC 1500 & RAS (RES. 0330)
   // =========================================================================
   {
     id: "AF-TANK",
     discipline: "PLU",
     subSystem: "potable_water",
-    nameEs: "Tanque Reserva Agua Potable 1,000 L (Cubierta)",
-    nameEn: "1,000 L Potable Water Reserve Tank (Roof)",
+    nameEs: "Tanque Reserva Agua Potable 1,000 L (RAS / NTC 1500)",
+    nameEn: "1,000 L Potable Water Reserve Tank (RAS / NTC 1500)",
     levelEs: "Cubierta (+5.90 m)",
     levelEn: "Roof (+5.90 m)",
-    specEs: "Polietileno tricapa + flotador + válvula cheque",
-    specEn: "Triple-layer HDPE tank + float & check valve",
+    specEs: "Polietileno tricapa + flotador + válvula cheque + rebose",
+    specEn: "Triple-layer HDPE tank + float, check & overflow valve",
+    normRef: "NTC 1500 / RAS Res. 0330",
     color: 0x1d4ed8,
     parts: [
       { kind: "pipe", p0: [-3.1, 5.9, -2.55], p1: [-3.1, 6.82, -2.55], radius: 0.48 },
@@ -384,22 +427,37 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     id: "AF-MONT-1",
     discipline: "PLU",
     subSystem: "potable_water",
-    nameEs: 'Montante Agua Potable Fría Ø 1½" (Núcleo Húmedo)',
-    nameEn: '1½" Cold Potable Water Riser (Wet Core)',
+    nameEs: 'Montante Agua Potable Fría Ø 1½" + Ramales Aparatos (NTC 1500)',
+    nameEn: '1½" Cold Potable Water Riser + Fixture Stubs (NTC 1500)',
     levelEs: "Niveles 1–2",
     levelEn: "Levels 1–2",
-    specEs: "PVC Presión RDE 21 NTC 382 • Alimenta Cocina y Baños",
-    specEn: "Schedule 40 Pressure PVC • Serves Kitchen & Baths",
+    specEs: "PVC Presión RDE 21 NTC 382 • Conexiones Baño N1, Cocina y Baño N2",
+    specEn: "Pressure PVC • Connected to Bath L1, Kitchen Sink & Bath L2",
+    normRef: "NTC 1500 / RAS",
     color: 0x2563eb,
     parts: [
       // Incoming service line from front West street meter under N1 slab
       { kind: "pipe", p0: [-2.2, 0.12, 3.3], p1: [-2.2, 0.12, -3.15], radius: 0.036 },
-      // Vertical potable riser inside rear wet chase (Cocina N1 / Baño 1 N2)
+      // Vertical potable riser inside rear wet chase
       { kind: "pipe", p0: [-2.2, 0.12, -3.15], p1: [-2.2, 4.9, -3.15], radius: 0.042 },
-      // Branch N1 to Baño Social & Cocina
-      { kind: "pipe", p0: [-3.2, 1.15, -3.15], p1: [-1.1, 1.15, -3.15], radius: 0.028 },
-      // Branch N2 to Baño 1 fixtures
-      { kind: "pipe", p0: [-2.2, 3.9, -3.15], p1: [-0.85, 3.9, -3.15], radius: 0.028 },
+      // N1 distribution manifold at y=0.58 serving Baño Social (WC + Lavamanos) & Cocina (Lavaplatos + Calentador)
+      { kind: "pipe", p0: [-3.65, 0.58, -3.15], p1: [-1.85, 0.58, -3.15], radius: 0.026 },
+      // Stub down to Baño Social WC (-3.20, 0.25, -3.15)
+      { kind: "pipe", p0: [-3.2, 0.58, -3.15], p1: [-3.2, 0.24, -3.15], radius: 0.02 },
+      // Stub along West wall to Baño Social Lavamanos (-3.65, 0.58, -2.15)
+      { kind: "pipe", p0: [-3.65, 0.58, -3.15], p1: [-3.65, 0.58, -2.15], radius: 0.022 },
+      // Stub up to Kitchen Sink faucet (-1.90, 0.88, -3.15)
+      { kind: "pipe", p0: [-1.9, 0.58, -3.15], p1: [-1.9, 0.92, -3.15], radius: 0.022 },
+      // Stub to Gas Water Heater (-2.25, 1.30, -2.55)
+      { kind: "pipe", p0: [-2.2, 1.25, -3.15], p1: [-2.25, 1.25, -2.55], radius: 0.022 },
+      // N2 manifold at y=3.65 serving Baño 1 N2 (Ducha, WC, Lavamanos)
+      { kind: "pipe", p0: [-2.2, 3.65, -3.15], p1: [-0.42, 3.65, -3.15], radius: 0.026 },
+      // Shower riser up to mixer & shower head (-1.35, 3.65 -> 5.05, -3.15)
+      { kind: "pipe", p0: [-1.35, 3.65, -3.15], p1: [-1.35, 5.05, -3.15], radius: 0.02 },
+      // Stub along West wall to WC N2 (-1.58, 3.30, -2.18)
+      { kind: "pipe", p0: [-1.58, 3.65, -3.15], p1: [-1.58, 3.3, -2.18], radius: 0.02 },
+      // Stub along East wall to Lavamanos N2 (-0.42, 3.60, -2.18)
+      { kind: "pipe", p0: [-0.42, 3.65, -3.15], p1: [-0.42, 3.6, -2.18], radius: 0.02 },
     ],
   },
   {
@@ -412,15 +470,14 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 2 → Roof",
     specEs: "PVC Presión RDE 21 • Sube a tanque reserva cubierta",
     specEn: "Pressure PVC supply riser feeding rooftop tank",
+    normRef: "NTC 1500 / NSR-10 C.6.3.4",
     color: 0x3b82f6,
     clashRuleId: "CLH-006",
-    // PRE-BIM: climbs inside corner column C1 (x in [-4.15,-3.85], z in [-3.65,-3.35])!
     parts: [
       { kind: "pipe", p0: [-2.2, 4.9, -3.15], p1: [-3.92, 4.9, -3.42], radius: 0.038 },
       { kind: "pipe", p0: [-3.92, 4.9, -3.42], p1: [-3.92, 6.42, -3.42], radius: 0.042 },
       { kind: "pipe", p0: [-3.92, 6.42, -3.42], p1: [-3.1, 6.42, -2.55], radius: 0.038 },
     ],
-    // COORDINATED: routes cleanly via interior wet chase at (-3.52, -3.05), 280mm clear of Column C1 & Parapet
     resolvedParts: [
       { kind: "pipe", p0: [-2.2, 4.9, -3.15], p1: [-3.52, 4.9, -3.05], radius: 0.038 },
       { kind: "pipe", p0: [-3.52, 4.9, -3.05], p1: [-3.52, 6.42, -3.05], radius: 0.042 },
@@ -431,38 +488,47 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     id: "SAN-BAJ-1",
     discipline: "PLU",
     subSystem: "sanitary",
-    nameEs: 'Bajante Aguas Negras SAN-1 (PVC Sanitaria Ø 4")',
-    nameEn: '4" Sanitary Soil Stack SAN-1 (PVC ASTM D2665)',
+    nameEs: 'Bajante Aguas Negras SAN-1 (Ø 4") + Descargas N1 (NTC 1500)',
+    nameEn: '4" Sanitary Soil Stack SAN-1 + L1 Fixture Drains (NTC 1500)',
     levelEs: "Niveles 0–2",
     levelEn: "Levels 0–2",
-    specEs: "Ducto vertical sanitario + colector enterrado bajo VC",
-    specEn: "Vertical sanitary soil stack + sub-grade collector",
+    specEs: "PVC Sanitaria NTC 1087 • Sifones Baño Social y Lavaplatos",
+    specEn: "Sanitary PVC • Connected to Powder Room WC/Sink & Kitchen Sink",
+    normRef: "NTC 1500 / RAS",
     color: 0xd97706,
     parts: [
-      // Vertical 4" soil stack at NW wet chase (clear of C1 and walls)
       { kind: "pipe", p0: [-3.2, -0.62, -3.18], p1: [-3.2, 3.15, -3.18], radius: 0.055 },
-      // Sub-grade horizontal collector cleanly below grade beams (VC bottom = -0.45)
       { kind: "pipe", p0: [-3.2, -0.62, -3.18], p1: [-3.2, -0.68, 3.85], radius: 0.055 },
+      // Drain branch from Baño Social Lavamanos (-3.65, 0.44, -2.15) to SAN-BAJ-1
+      { kind: "pipe", p0: [-3.65, 0.44, -2.15], p1: [-3.65, 0.36, -3.18], radius: 0.026 },
+      { kind: "pipe", p0: [-3.65, 0.36, -3.18], p1: [-3.2, 0.32, -3.18], radius: 0.026 },
+      // Drain branch from Kitchen Sink trap (-1.90, 0.48, -3.08) to SAN-BAJ-1
+      { kind: "pipe", p0: [-1.9, 0.72, -3.08], p1: [-1.9, 0.42, -3.18], radius: 0.028 },
+      { kind: "pipe", p0: [-1.9, 0.42, -3.18], p1: [-3.2, 0.34, -3.18], radius: 0.032 },
     ],
   },
   {
     id: "SAN-COL-N2",
     discipline: "PLU",
     subSystem: "sanitary",
-    nameEs: 'Colector Sanitario Baño Nivel 2 (PVC Ø 4")',
-    nameEn: 'Level 2 Bathroom 4" Sanitary Collector',
+    nameEs: 'Colector Sanitario Baño Nivel 2 (PVC Ø 4" • Pendiente 2%)',
+    nameEn: 'Level 2 Bathroom 4" Sanitary Collector (2% Slope)',
     levelEs: "Nivel 2 (Bajo Losa L-1)",
     levelEn: "Level 2 (Below Slab L-1)",
-    specEs: "Pendiente 2% • Descarga aparato sanitario y ducha N2",
-    specEn: "2% slope • Bathroom 1 WC & shower branch collector",
+    specEs: "Recoge sanitario, ducha y lavamanos Baño 1 N2",
+    specEn: "Collects L2 Bathroom WC, shower drain & vanity trap",
+    normRef: "NTC 1500 / NSR-10 C.6.3",
     color: 0xf59e0b,
     clashRuleId: "CLH-003",
-    // PRE-BIM: attempts to cross East across beam VE-2 (x in [-0.15, 0.15], y in [2.60, 3.00]) at y = 2.78!
     parts: [
-      { kind: "pipe", p0: [-1.25, 2.8, -2.2], p1: [0.55, 2.74, -2.2], radius: 0.055 },
+      { kind: "pipe", p0: [-1.35, 3.01, -2.95], p1: [-1.35, 2.81, -2.2], radius: 0.032 }, // Shower drain
+      { kind: "pipe", p0: [-0.42, 3.55, -2.18], p1: [-0.42, 2.78, -2.2], radius: 0.028 }, // Vanity drain
+      { kind: "pipe", p0: [-1.25, 2.8, -2.2], p1: [0.55, 2.74, -2.2], radius: 0.055 }, // Collides with VE-2
     ],
-    // COORDINATED: rerouted West inside Baño N2 ceiling directly into vertical stack SAN-BAJ-1 (no beam crossing!)
     resolvedParts: [
+      { kind: "pipe", p0: [-1.35, 3.01, -2.95], p1: [-1.35, 2.81, -2.2], radius: 0.032 },
+      { kind: "pipe", p0: [-0.42, 3.55, -2.18], p1: [-0.42, 2.81, -2.2], radius: 0.028 },
+      { kind: "pipe", p0: [-0.42, 2.81, -2.2], p1: [-1.25, 2.78, -2.2], radius: 0.038 },
       { kind: "pipe", p0: [-1.25, 2.78, -2.2], p1: [-3.2, 2.72, -2.2], radius: 0.055 },
       { kind: "pipe", p0: [-3.2, 2.72, -2.2], p1: [-3.2, 2.69, -3.18], radius: 0.055 },
     ],
@@ -477,7 +543,8 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Roof → Level 1 (Grid 3-A)",
     specEs: "Conectado a losa L-2 pendiente 1% + tragante cúpula",
     specEn: "Connected to 1% sloped L-2 roof slab + dome strainer",
-    color: 0xeab308,
+    normRef: "NTC 1500 Cap. 12 / RAS",
+    color: 0xca8a04,
     parts: [
       { kind: "pipe", p0: [3.72, 5.82, -3.22], p1: [4.23, 5.82, -3.22], radius: 0.055 },
       { kind: "pipe", p0: [4.23, 5.82, -3.22], p1: [4.23, 0.18, -3.22], radius: 0.055 },
@@ -485,23 +552,33 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
   },
 
   // =========================================================================
-  // 3. ELECTRICAL & DATA (E) — RED / COPPER-ORANGE
+  // 3. ELECTRICAL & LIGHTING (E) — RETIE / NTC 2050 / RETILAP
   // =========================================================================
   {
     id: "ELEC-PANELS",
     discipline: "ELEC",
     subSystem: "electrical_panel",
-    nameEs: "Tablero General TG-N1, Subtablero ST-N2 y Montante EMT",
-    nameEn: "Main Breaker Panel TG-N1, Subpanel ST-N2 & EMT Riser",
+    nameEs: "Tablero TG-N1, Subtablero ST-N2 y Bajantes GFCI (RETIE)",
+    nameEn: "Main Panel TG-N1, Subpanel ST-N2 & GFCI Drops (RETIE / NEC)",
     levelEs: "Niveles 1–2 (Eje 2-B)",
     levelEn: "Levels 1–2 (Grid 2-B)",
-    specEs: "RETIE • 24 circuitos bifásicos + barraje cobre + tubería EMT 2\"",
-    specEn: "NEC/RETIE • 24-circuit panelboard + 2\" EMT feeder riser",
+    specEs: "24 circuitos bifásicos + barraje tierra SPT + circuitos GFCI 20A",
+    specEn: "24-circuit panelboard + ground bus + 20A GFCI wet circuits",
+    normRef: "RETIE / NTC 2050 Sec. 210.8",
     color: 0xb91c1c,
     parts: [
-      { kind: "box", x: 0.65, y: 1.45, z: -0.26, w: 0.42, h: 0.58, d: 0.14 }, // TG-N1
-      { kind: "box", x: 0.65, y: 4.35, z: -0.26, w: 0.36, h: 0.48, d: 0.14 }, // ST-N2
-      { kind: "pipe", p0: [0.65, 1.74, -0.26], p1: [0.65, 4.11, -0.26], radius: 0.032 }, // vertical EMT riser
+      { kind: "box", x: 0.65, y: 1.45, z: -0.26, w: 0.42, h: 0.58, d: 0.14 },
+      { kind: "box", x: 0.65, y: 4.35, z: -0.26, w: 0.36, h: 0.48, d: 0.14 },
+      { kind: "pipe", p0: [0.65, 1.74, -0.26], p1: [0.65, 4.11, -0.26], radius: 0.032 },
+      // Orthogonal EMT conduit run from TG-N1 to Kitchen GFCI wall drop (-1.35, 1.15..2.46, -3.25)
+      { kind: "pipe", p0: [0.65, 2.46, -0.26], p1: [-1.35, 2.46, -0.26], radius: 0.02 },
+      { kind: "pipe", p0: [-1.35, 2.46, -0.26], p1: [-1.35, 2.46, -3.25], radius: 0.02 },
+      { kind: "pipe", p0: [-1.35, 2.46, -3.25], p1: [-1.35, 1.15, -3.25], radius: 0.024 },
+      // Lighting conduit drops N1 & N2 to RETILAP fixtures
+      { kind: "pipe", p0: [0.65, 2.55, 1.75], p1: [-2.0, 2.55, 1.75], radius: 0.016 },
+      { kind: "pipe", p0: [0.65, 2.55, 1.75], p1: [2.0, 2.55, 1.75], radius: 0.016 },
+      { kind: "pipe", p0: [0.65, 5.34, -0.26], p1: [0.65, 5.34, 1.75], radius: 0.018 },
+      { kind: "pipe", p0: [-2.0, 5.34, 1.75], p1: [2.0, 5.34, 1.75], radius: 0.016 },
     ],
   },
   {
@@ -514,19 +591,18 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 1 (+2.46 m)",
     specEs: "Bandeja tipo malla electrozincada + soportes varilla roscada",
     specEn: "Wire-mesh cable tray + threaded-rod trapeze hangers",
+    normRef: "RETIE Art. 20 / NTC 2050 / RETILAP",
     color: 0xef4444,
     clashRuleId: "CLH-004",
-    // PRE-BIM: runs straight at y = 2.46 across HVAC-N1-BR (z = 1.80, y: 2.38..2.54) -> MEP-vs-MEP clash!
     parts: [
-      { kind: "box", x: 0.65, y: 2.46, z: 1.32, w: 0.18, h: 0.08, d: 3.16 }, // z: -0.26 -> +2.90
+      { kind: "box", x: 0.65, y: 2.46, z: 1.32, w: 0.18, h: 0.08, d: 3.16 },
     ],
-    // COORDINATED: drops cleanly under HVAC-N1-BR on trapeze at y = 2.26 (80 mm vertical separation)
     resolvedParts: [
-      { kind: "box", x: 0.65, y: 2.46, z: 0.54, w: 0.18, h: 0.08, d: 1.6 }, // z: -0.26 -> +1.34
-      { kind: "box", x: 0.65, y: 2.36, z: 1.34, w: 0.18, h: 0.24, d: 0.08 }, // drop down
-      { kind: "box", x: 0.65, y: 2.26, z: 1.8, w: 0.18, h: 0.08, d: 0.96 }, // under HVAC-N1-BR (y: 2.22..2.30 < 2.38)
-      { kind: "box", x: 0.65, y: 2.36, z: 2.26, w: 0.18, h: 0.24, d: 0.08 }, // rise back
-      { kind: "box", x: 0.65, y: 2.46, z: 2.58, w: 0.18, h: 0.08, d: 0.64 }, // z: +2.26 -> +2.90
+      { kind: "box", x: 0.65, y: 2.46, z: 0.54, w: 0.18, h: 0.08, d: 1.6 },
+      { kind: "box", x: 0.65, y: 2.36, z: 1.34, w: 0.18, h: 0.24, d: 0.08 },
+      { kind: "box", x: 0.65, y: 2.26, z: 1.8, w: 0.18, h: 0.08, d: 0.96 },
+      { kind: "box", x: 0.65, y: 2.36, z: 2.26, w: 0.18, h: 0.24, d: 0.08 },
+      { kind: "box", x: 0.65, y: 2.46, z: 2.58, w: 0.18, h: 0.08, d: 0.64 },
     ],
   },
   {
@@ -539,25 +615,538 @@ export const PORTICO_2N_MEP_ELEMENTS: MepElementDef[] = [
     levelEn: "Level 2 (+3.65 m)",
     specEs: "Ductería EMT 1½\" + circuitos GFCI Baño N2 y Hab. 3",
     specEn: "1½\" EMT feeder tray serving Bath 1 GFCI & Bedroom 3",
+    normRef: "RETIE / NTC 2050 Sec. 210.8",
     color: 0xf97316,
     clashRuleId: "CLH-005",
-    // PRE-BIM: runs along z = -3.15 directly through potable water riser AF-MONT-1 (-2.20, -3.15)! (RETIE violation)
     parts: [
-      { kind: "box", x: 0.65, y: 3.65, z: -1.705, w: 0.14, h: 0.07, d: 2.89 }, // from ST-N2 z=-0.26 -> -3.15
-      { kind: "box", x: -1.35, y: 3.65, z: -3.15, w: 4.0, h: 0.07, d: 0.14 }, // x: +0.65 -> -3.35 hits AF-MONT-1!
+      { kind: "box", x: 0.65, y: 3.65, z: -1.705, w: 0.14, h: 0.07, d: 2.89 },
+      { kind: "box", x: -1.35, y: 3.65, z: -3.15, w: 4.0, h: 0.07, d: 0.14 },
     ],
-    // COORDINATED: rerouted 45 cm South along z = -2.70 maintaining RETIE minimum clearance from water riser
+    // COORDINATED: elevated to ST-N2 corridor y=4.35 m and offset 50 cm South (z=-2.65 m), clear of all L2 water risers & stubs!
     resolvedParts: [
-      { kind: "box", x: 0.65, y: 3.65, z: -1.48, w: 0.14, h: 0.07, d: 2.44 }, // z: -0.26 -> -2.70
-      { kind: "box", x: -1.35, y: 3.65, z: -2.7, w: 4.0, h: 0.07, d: 0.14 }, // clear of AF-MONT-1 at z=-3.15
+      { kind: "box", x: 0.65, y: 4.35, z: -1.455, w: 0.14, h: 0.07, d: 2.39 }, // z: -0.26 -> -2.65 at y=4.35
+      { kind: "box", x: -1.35, y: 4.35, z: -2.65, w: 4.0, h: 0.07, d: 0.14 }, // clear of AF-MONT-1 & all Baño N2 water stubs
+    ],
+  },
+
+  // =========================================================================
+  // 4. NATURAL GAS NETWORK (GAS) — NTC 2505 (EDIFICACIÓN RESIDENCIAL)
+  // =========================================================================
+  {
+    id: "GAS-RED-1",
+    discipline: "GAS",
+    subSystem: "gas_line",
+    nameEs: 'Red Interna Gas Natural PE-AL-PE Ø ¾" (NTC 2505)',
+    nameEn: '3/4" Residential Natural Gas Piping PE-AL-PE (NTC 2505)',
+    levelEs: "Nivel 1 (Fachada → Cocina)",
+    levelEn: "Level 1 (Facade → Kitchen)",
+    specEs: "Tubería amarilla normativa + válvulas de corte Estufa y Calentador",
+    specEn: "Code-yellow gas line + individual shutoff valves (Stove & Heater)",
+    normRef: "NTC 2505 / NTC 3631 (Ventilación)",
+    color: 0xfacc15,
+    clashRuleId: "CLH-007",
+    // PRE-BIM: horizontal kitchen run at y=2.12, z=-3.25 intersects vertical GFCI electrical conduit at (-1.35, 1.15..2.46, -3.25)!
+    parts: [
+      { kind: "pipe", p0: [-3.72, 1.25, 3.62], p1: [-3.72, 2.12, 3.62], radius: 0.025 },
+      { kind: "pipe", p0: [-3.72, 2.12, 3.62], p1: [-3.72, 2.12, -3.25], radius: 0.025 },
+      { kind: "pipe", p0: [-3.72, 2.12, -3.25], p1: [-0.8, 2.12, -3.25], radius: 0.025 }, // Clashes ELEC-PANELS at x=-1.35!
+      { kind: "pipe", p0: [-0.8, 2.12, -3.25], p1: [-0.8, 0.92, -3.15], radius: 0.02 }, // Drop to Stove
+      { kind: "pipe", p0: [-2.25, 2.12, -3.25], p1: [-2.25, 1.48, -2.55], radius: 0.02 }, // Drop to Water Heater
+    ],
+    // COORDINATED: routes at lower gas manifold y=0.68 m (below counter, 470 mm clear below GFCI conduit!)
+    resolvedParts: [
+      { kind: "pipe", p0: [-3.72, 1.25, 3.62], p1: [-3.72, 0.68, 3.62], radius: 0.025 },
+      { kind: "pipe", p0: [-3.72, 0.68, 3.62], p1: [-3.72, 0.68, -3.25], radius: 0.025 },
+      { kind: "pipe", p0: [-3.72, 0.68, -3.25], p1: [-0.8, 0.68, -3.25], radius: 0.025 },
+      { kind: "pipe", p0: [-0.8, 0.68, -3.25], p1: [-0.8, 0.92, -3.15], radius: 0.02 }, // Rises neatly behind Stove
+      { kind: "pipe", p0: [-2.25, 0.68, -3.25], p1: [-2.25, 1.42, -2.55], radius: 0.02 }, // Rises neatly to Water Heater
+    ],
+  },
+
+  // =========================================================================
+  // 5. FIRE PROTECTION (PCI) — NSR-10 TÍTULOS J y K / NFPA 13-72
+  // =========================================================================
+  {
+    id: "PCI-RED-1",
+    discipline: "PCI",
+    subSystem: "pci_line",
+    nameEs: 'Red Contra Incendios Acero Céd. 40 Ø 1½" (NSR-10 Tít. J/K)',
+    nameEn: '1½" Sch-40 Fire Protection Sprinkler Branch (NSR-10 J/K)',
+    levelEs: "Niveles 1–2 (Hall Escalera → Comedor)",
+    levelEn: "Levels 1–2 (Stair Hall → Dining)",
+    specEs: "Tubería roja PCI + alimentación rociadores y columna detección",
+    specEn: "Code-red fire piping serving stairwell & main living zone",
+    normRef: "NSR-10 Títulos J y K / NFPA 13",
+    color: 0xe11d48,
+    clashRuleId: "CLH-008",
+    // PRE-BIM: horizontal sprinkler branch at y=2.46, z=1.80 hits HVAC-N1-BR (y: 2.38..2.54, z: 1.67..1.93)!
+    parts: [
+      { kind: "pipe", p0: [0.3, 0.1, -1.2], p1: [0.3, 5.25, -1.2], radius: 0.032 }, // Vertical PCI riser near Stair Hall
+      { kind: "pipe", p0: [0.3, 2.46, -1.2], p1: [0.3, 2.46, 1.8], radius: 0.028 },
+      { kind: "pipe", p0: [0.3, 2.46, 1.8], p1: [2.35, 2.46, 1.8], radius: 0.028 }, // Collides with HVAC-N1-BR!
+    ],
+    // COORDINATED: routes at y=2.76, z=1.18 (clear above & 62 cm North of HVAC-N1-BR — NFPA 13 compliant)
+    resolvedParts: [
+      { kind: "pipe", p0: [0.3, 0.1, -1.2], p1: [0.3, 5.25, -1.2], radius: 0.032 },
+      { kind: "pipe", p0: [0.3, 2.76, -1.2], p1: [0.3, 2.76, 1.18], radius: 0.028 },
+      { kind: "pipe", p0: [0.3, 2.76, 1.18], p1: [2.35, 2.76, 1.18], radius: 0.028 },
     ],
   },
 ];
 
 /**
- * Curated Navisworks-style Clash Detective Rule Definitions for PORTICO-2N.
- * Geometry intersection, penetration depth (mm) and 3D coordinates are computed dynamically
- * using real THREE.Box3 intersection math against the active (Pre-BIM vs Coordinated) meshes.
+ * Architectural & Engineering 3D Fixtures (Sanitaryware, Kitchen, GFCI Outlets,
+ * RETILAP LED Luminaires, ASHRAE Diffusers/Extractors, Gas Appliances & PCI Safety Devices),
+ * placed inside exact PORTICO-2N rooms and physically connected to the MEP piping/ducts.
+ */
+export const PORTICO_2N_FIXTURES: MepFixtureDef[] = [
+  // ---- SANITARYWARE & KITCHEN (NTC 1500 & RAS) ----
+  {
+    id: "FIX-WC-N1",
+    discipline: "PLU",
+    category: "sanitary",
+    roomEs: "Baño Social (Nivel 1)",
+    roomEn: "Powder Room (Level 1)",
+    levelEs: "Nivel 1",
+    levelEn: "Level 1",
+    nameEs: "Sanitario Bajo Consumo 4.8 L/descarga (Baño Social N1)",
+    nameEn: "Low-Flow Toilet 1.28 GPF (L1 Powder Room)",
+    connectedToEs: 'Descarga Ø 4" → SAN-BAJ-1 · Agua fría Ø ½" → AF-MONT-1',
+    connectedToEn: '4" Drain → SAN-BAJ-1 · 1/2" Cold Water → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Consumo ≤ 4.8 L/descarga, brida Ø 4\", llave regulación a h=0.20 m",
+    normDetailEn: "Low-flow ≤ 4.8 LPF, 4\" flange, shutoff valve at h=20 cm",
+    color: 0xf8fafc,
+    focusPoint: [-3.2, 0.45, -2.95],
+    cameraPos: [-1.4, 1.75, -1.1],
+    parts: [
+      { kind: "box", x: -3.2, y: 0.56, z: -3.12, w: 0.42, h: 0.44, d: 0.2, colorOverride: 0xf8fafc }, // Cistern tank
+      { kind: "pipe", p0: [-3.2, 0.02, -2.88], p1: [-3.2, 0.4, -2.88], radius: 0.19, colorOverride: 0xf1f5f9 }, // Bowl
+      { kind: "box", x: -3.2, y: 0.41, z: -2.88, w: 0.36, h: 0.04, d: 0.44, colorOverride: 0xe2e8f0 }, // Seat lid
+    ],
+  },
+  {
+    id: "FIX-LAV-N1",
+    discipline: "PLU",
+    category: "sanitary",
+    roomEs: "Baño Social (Nivel 1)",
+    roomEn: "Powder Room (Level 1)",
+    levelEs: "Nivel 1",
+    levelEn: "Level 1",
+    nameEs: "Lavamanos Pedestal + Grifería Ahorradora (Baño Social N1)",
+    nameEn: "Pedestal Lavatory + Water-Saving Faucet (L1 Powder Room)",
+    connectedToEs: 'Sifón Ø 1½" → SAN-BAJ-1 · Punto agua fría h=0.55 m → AF-MONT-1',
+    connectedToEn: '1½" Trap → SAN-BAJ-1 · Cold Water stub h=55 cm → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Sello hidráulico 50 mm (NTC 1500), aireador ≤ 5.7 L/min",
+    normDetailEn: "50 mm trap seal (NTC 1500), aerator ≤ 1.5 GPM",
+    color: 0xf8fafc,
+    focusPoint: [-3.65, 0.65, -2.15],
+    cameraPos: [-1.8, 1.85, -0.7],
+    parts: [
+      { kind: "box", x: -3.65, y: 0.4, z: -2.15, w: 0.2, h: 0.78, d: 0.22, colorOverride: 0xe2e8f0 }, // Pedestal
+      { kind: "box", x: -3.62, y: 0.83, z: -2.15, w: 0.42, h: 0.12, d: 0.52, colorOverride: 0xf8fafc }, // Basin
+      { kind: "pipe", p0: [-3.74, 0.89, -2.15], p1: [-3.68, 1.0, -2.15], radius: 0.018, colorOverride: 0x94a3b8 }, // Faucet
+    ],
+  },
+  {
+    id: "FIX-SINK-K1",
+    discipline: "PLU",
+    category: "kitchen",
+    roomEs: "Cocina (Nivel 1)",
+    roomEn: "Kitchen (Level 1)",
+    levelEs: "Nivel 1",
+    levelEn: "Level 1",
+    nameEs: "Mesón Cocina + Lavaplatos Acero Inox + Trampa Grasas",
+    nameEn: "Kitchen Counter + Stainless Sink + Grease Trap",
+    connectedToEs: 'Desagüe Ø 2" → SAN-BAJ-1 · Mezclador → AF-MONT-1',
+    connectedToEn: '2" Drain → SAN-BAJ-1 · Supply → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Sifón registrable Ø 2\", descarga con pendiente ≥ 2% NTC 1500",
+    normDetailEn: "2\" accessible trap, ≥ 2% gravity drain slope NTC 1500",
+    color: 0xcbd5e1,
+    focusPoint: [-1.45, 0.9, -3.0],
+    cameraPos: [-0.8, 2.2, -0.5],
+    parts: [
+      { kind: "box", x: -1.3, y: 0.45, z: -3.02, w: 2.0, h: 0.86, d: 0.62, colorOverride: 0x475569 }, // Counter cabinet
+      { kind: "box", x: -1.3, y: 0.9, z: -3.02, w: 2.04, h: 0.05, d: 0.65, colorOverride: 0xe2e8f0 }, // Granite top
+      { kind: "box", x: -1.9, y: 0.91, z: -3.02, w: 0.64, h: 0.06, d: 0.46, colorOverride: 0x94a3b8 }, // Stainless sink bowl
+      { kind: "pipe", p0: [-1.9, 0.93, -3.22], p1: [-1.9, 1.18, -3.14], radius: 0.016, colorOverride: 0xcbd5e1 }, // Gooseneck faucet
+    ],
+  },
+  {
+    id: "FIX-WC-N2",
+    discipline: "PLU",
+    category: "sanitary",
+    roomEs: "Baño 1 (Nivel 2)",
+    roomEn: "Bathroom 1 (Level 2)",
+    levelEs: "Nivel 2",
+    levelEn: "Level 2",
+    nameEs: "Sanitario Ecológico + Descarga Colgada (Baño 1 N2)",
+    nameEn: "Low-Flow Toilet + Suspended Drain (L2 Bathroom 1)",
+    connectedToEs: 'Codo Ø 4" → SAN-COL-N2 · Agua fría → AF-MONT-1',
+    connectedToEn: '4" Bend → SAN-COL-N2 · Cold Water → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Aparato ahorrador 4.8 L, ventilación sanitaria columna SAN-1",
+    normDetailEn: "4.8 LPF fixture, vented via soil stack SAN-1",
+    color: 0xf8fafc,
+    focusPoint: [-1.38, 3.45, -2.18],
+    cameraPos: [0.6, 4.7, -0.3],
+    parts: [
+      { kind: "box", x: -1.56, y: 3.56, z: -2.18, w: 0.2, h: 0.44, d: 0.42, colorOverride: 0xf8fafc },
+      { kind: "pipe", p0: [-1.32, 3.02, -2.18], p1: [-1.32, 3.4, -2.18], radius: 0.19, colorOverride: 0xf1f5f9 },
+      { kind: "box", x: -1.32, y: 3.41, z: -2.18, w: 0.44, h: 0.04, d: 0.36, colorOverride: 0xe2e8f0 },
+    ],
+  },
+  {
+    id: "FIX-LAV-N2",
+    discipline: "PLU",
+    category: "sanitary",
+    roomEs: "Baño 1 (Nivel 2)",
+    roomEn: "Bathroom 1 (Level 2)",
+    levelEs: "Nivel 2",
+    levelEn: "Level 2",
+    nameEs: "Mueble Lavamanos + Espejo + Grifería (Baño 1 N2)",
+    nameEn: "Vanity Sink Cabinet + Mirror + Faucet (L2 Bathroom 1)",
+    connectedToEs: 'Sifón Ø 1½" → SAN-COL-N2 · Agua fría → AF-MONT-1',
+    connectedToEn: '1½" Trap → SAN-COL-N2 · Cold Water → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Altura montaje 0.85 m, registro limpieza sifón NTC 1500",
+    normDetailEn: "Mounting height 85 cm, accessible cleanout trap NTC 1500",
+    color: 0xf8fafc,
+    focusPoint: [-0.42, 3.7, -2.18],
+    cameraPos: [-2.1, 4.9, -0.5],
+    parts: [
+      { kind: "box", x: -0.42, y: 3.46, z: -2.18, w: 0.46, h: 0.72, d: 0.72, colorOverride: 0x64748b }, // Vanity
+      { kind: "box", x: -0.42, y: 3.86, z: -2.18, w: 0.48, h: 0.08, d: 0.74, colorOverride: 0xf8fafc }, // Top basin
+      { kind: "box", x: -0.2, y: 4.5, z: -2.18, w: 0.03, h: 0.75, d: 0.65, colorOverride: 0xbae6fd, opacity: 0.7 }, // Mirror
+    ],
+  },
+  {
+    id: "FIX-SHOWER-N2",
+    discipline: "PLU",
+    category: "sanitary",
+    roomEs: "Baño 1 (Nivel 2)",
+    roomEn: "Bathroom 1 (Level 2)",
+    levelEs: "Nivel 2",
+    levelEn: "Level 2",
+    nameEs: "Cabina Ducha + Mezclador + Sifón de Piso Ø 2\" (Baño 1 N2)",
+    nameEn: "Glass Shower Enclosure + Mixer + 2\" Floor Drain (L2 Bath 1)",
+    connectedToEs: 'Sifón piso Ø 2" → SAN-COL-N2 · Rociador h=2.05 m → AF-MONT-1',
+    connectedToEn: '2" Floor Drain → SAN-COL-N2 · Showerhead h=2.05 m → AF-MONT-1',
+    normCode: "NTC 1500 / RAS",
+    normDetailEs: "Regadera ahorradora ≤ 9.5 L/min, vidrio templado 8 mm",
+    normDetailEn: "Water-saving showerhead ≤ 2.5 GPM, 8 mm tempered glass",
+    color: 0x38bdf8,
+    focusPoint: [-1.35, 4.1, -2.95],
+    cameraPos: [0.5, 5.1, -1.0],
+    parts: [
+      { kind: "box", x: -1.35, y: 3.04, z: -2.95, w: 0.85, h: 0.06, d: 0.85, colorOverride: 0xe2e8f0 }, // Shower tray
+      { kind: "box", x: -0.92, y: 3.98, z: -2.95, w: 0.03, h: 1.85, d: 0.85, colorOverride: 0x7dd3fc, opacity: 0.35 }, // Glass panel
+      { kind: "pipe", p0: [-1.35, 5.05, -3.15], p1: [-1.35, 4.98, -2.95], radius: 0.06, colorOverride: 0xcbd5e1 }, // Shower head
+      { kind: "box", x: -1.35, y: 4.1, z: -3.22, w: 0.16, h: 0.1, d: 0.06, colorOverride: 0x94a3b8 }, // Mixer valve
+    ],
+  },
+
+  // ---- NATURAL GAS APPLIANCES (NTC 2505 / NTC 3631) ----
+  {
+    id: "FIX-GAS-METER",
+    discipline: "GAS",
+    category: "gas",
+    roomEs: "Fachada Frontal Oeste (Acometida)",
+    roomEn: "West Front Facade (Service Entry)",
+    levelEs: "Nivel 1 (Exterior)",
+    levelEn: "Level 1 (Exterior)",
+    nameEs: "Centro de Medición, Regulador y Válvula Corte Gas (NTC 2505)",
+    nameEn: "Natural Gas Meter, Regulator & Main Shutoff (NTC 2505)",
+    connectedToEs: 'Acometida principal → Tubería amarilla GAS-RED-1 Ø ¾"',
+    connectedToEn: 'Main service → Code-yellow 3/4" GAS-RED-1',
+    normCode: "NTC 2505",
+    normDetailEs: "Gabinete ventilado en fachada accesible, válvula de corte rápido",
+    normDetailEn: "Vented exterior facade cabinet with quarter-turn shutoff",
+    color: 0xfacc15,
+    focusPoint: [-3.72, 1.25, 3.65],
+    cameraPos: [-5.6, 2.2, 5.4],
+    parts: [
+      { kind: "box", x: -3.72, y: 1.25, z: 3.66, w: 0.38, h: 0.44, d: 0.22, colorOverride: 0xeab308 },
+      { kind: "box", x: -3.72, y: 1.25, z: 3.78, w: 0.18, h: 0.14, d: 0.04, colorOverride: 0x0f172a },
+    ],
+  },
+  {
+    id: "FIX-STOVE-K1",
+    discipline: "GAS",
+    category: "gas",
+    roomEs: "Cocina (Nivel 1)",
+    roomEn: "Kitchen (Level 1)",
+    levelEs: "Nivel 1",
+    levelEn: "Level 1",
+    nameEs: "Estufa a Gas 4 Puestos + Válvula Paso Individual (NTC 2505)",
+    nameEn: "4-Burner Gas Cooktop + Individual Shutoff Valve (NTC 2505)",
+    connectedToEs: 'Ramal Gas Ø ½" + válvula de paso → GAS-RED-1',
+    connectedToEn: '1/2" Gas stub + shutoff valve → GAS-RED-1',
+    normCode: "NTC 2505 / NTC 3631",
+    normDetailEs: "Válvula accesible, manguera metálica flexible certificada NTC",
+    normDetailEn: "Accessible shutoff valve + certified braided metallic connector",
+    color: 0xfacc15,
+    focusPoint: [-0.8, 1.05, -3.02],
+    cameraPos: [0.9, 2.2, -1.1],
+    parts: [
+      { kind: "box", x: -0.8, y: 0.94, z: -3.02, w: 0.64, h: 0.06, d: 0.54, colorOverride: 0x1e293b }, // Cooktop
+      { kind: "pipe", p0: [-0.95, 0.97, -3.14], p1: [-0.95, 1.0, -3.14], radius: 0.07, colorOverride: 0xfacc15 },
+      { kind: "pipe", p0: [-0.65, 0.97, -3.14], p1: [-0.65, 1.0, -3.14], radius: 0.07, colorOverride: 0xfacc15 },
+      { kind: "pipe", p0: [-0.95, 0.97, -2.9], p1: [-0.95, 1.0, -2.9], radius: 0.07, colorOverride: 0xfacc15 },
+      { kind: "pipe", p0: [-0.65, 0.97, -2.9], p1: [-0.65, 1.0, -2.9], radius: 0.07, colorOverride: 0xfacc15 },
+    ],
+  },
+  {
+    id: "FIX-HEATER-K1",
+    discipline: "GAS",
+    category: "gas",
+    roomEs: "Cocina / Zona Ropas (Nivel 1)",
+    roomEn: "Kitchen / Utility (Level 1)",
+    levelEs: "Nivel 1",
+    levelEn: "Level 1",
+    nameEs: "Calentador de Paso a Gas 10 L/min + Ducto Evacuación (NTC 2505)",
+    nameEn: "Tankless Gas Water Heater 10 L/min + Flue Duct (NTC 2505)",
+    connectedToEs: "Gas → GAS-RED-1 · Agua fría → AF-MONT-1 · Ducto tiro forzado",
+    connectedToEn: "Gas → GAS-RED-1 · Cold Water → AF-MONT-1 · Flue exhaust",
+    normCode: "NTC 2505 / NTC 3631",
+    normDetailEs: "Rejillas ventilación superior/inferior ≥ 6 cm²/kW, ducto aluminio",
+    normDetailEn: "Upper/lower combustion air vents + metallic flue exhaust",
+    color: 0xfde047,
+    focusPoint: [-2.25, 1.55, -2.55],
+    cameraPos: [-0.5, 2.2, -1.2],
+    parts: [
+      { kind: "box", x: -2.25, y: 1.55, z: -2.55, w: 0.22, h: 0.52, d: 0.34, colorOverride: 0xf8fafc },
+      { kind: "pipe", p0: [-2.25, 1.81, -2.55], p1: [-2.25, 2.38, -2.55], radius: 0.055, colorOverride: 0x94a3b8 }, // Flue duct
+      { kind: "pipe", p0: [-2.25, 2.38, -2.55], p1: [-2.25, 2.38, -3.48], radius: 0.055, colorOverride: 0x94a3b8 }, // Exhaust out North wall
+    ],
+  },
+
+  // ---- ELECTRICAL GFCI & LIGHTING RETILAP (RETIE / NTC 2050 / RETILAP) ----
+  {
+    id: "FIX-GFCI-SET",
+    discipline: "ELEC",
+    category: "electrical",
+    roomEs: "Cocina, Baño Social N1 y Baño 1 N2",
+    roomEn: "Kitchen, L1 Powder Room & L2 Bath 1",
+    levelEs: "Niveles 1 y 2 (h=1.15 m)",
+    levelEn: "Levels 1 & 2 (h=1.15 m)",
+    nameEs: "Tomas Corrientes GFCI 20A Zonas Húmedas (3 uds • RETIE)",
+    nameEn: "20A GFCI Wet-Location Outlets (3 units • RETIE / NEC 210.8)",
+    connectedToEs: "Circuitos dedicados 20A + tierra → TG-N1 / ST-N2 / ELEC-ALIM-N2",
+    connectedToEn: "Dedicated 20A GFCI circuits → TG-N1 / ST-N2 / ELEC-ALIM-N2",
+    normCode: "RETIE / NTC 2050",
+    normDetailEs: "Protección falla a tierra 5 mA obligatoria en baños y mesón cocina (Sec. 210.8)",
+    normDetailEn: "5 mA ground-fault protection required in kitchen & bathrooms (NEC 210.8)",
+    color: 0xf97316,
+    focusPoint: [-1.35, 1.15, -3.25],
+    cameraPos: [-0.2, 2.1, -1.4],
+    parts: [
+      { kind: "box", x: -1.35, y: 1.15, z: -3.36, w: 0.14, h: 0.1, d: 0.04, colorOverride: 0xf97316 }, // Kitchen GFCI
+      { kind: "box", x: -3.84, y: 1.15, z: -2.02, w: 0.04, h: 0.1, d: 0.14, colorOverride: 0xf97316 }, // Bath N1 GFCI
+      { kind: "box", x: -0.22, y: 4.15, z: -1.8, w: 0.04, h: 0.1, d: 0.14, colorOverride: 0xf97316 }, // Bath N2 GFCI
+      // Standard duplex outlets Sala & Comedor (h=0.40 m)
+      { kind: "box", x: -3.84, y: 0.4, z: 1.75, w: 0.04, h: 0.1, d: 0.14, colorOverride: 0xef4444 },
+      { kind: "box", x: 3.84, y: 0.4, z: 1.75, w: 0.04, h: 0.1, d: 0.14, colorOverride: 0xef4444 },
+    ],
+  },
+  {
+    id: "FIX-RETILAP-LED",
+    discipline: "ELEC",
+    category: "lighting",
+    roomEs: "Todos los Espacios (Niveles 1 y 2)",
+    roomEn: "All Habitable Rooms (Levels 1 & 2)",
+    levelEs: "Niveles 1 (+2.58 m) y 2 (+5.36 m)",
+    levelEn: "Levels 1 (+2.58 m) & 2 (+5.36 m)",
+    nameEs: "Luminarias Panel LED Empotradas (9 uds • RETILAP 150–300 lx)",
+    nameEn: "Recessed LED Panel Luminaires (9 units • RETILAP 150–300 lx)",
+    connectedToEs: "Circuitos alumbrado 15A → Bandeja ELEC-TR-N1 / Subtablero ST-N2",
+    connectedToEn: "15A Lighting circuits → Tray ELEC-TR-N1 / Subpanel ST-N2",
+    normCode: "RETILAP",
+    normDetailEs: "150–200 lx alcobas/sala, 300 lx mesón cocina, IP44 en baños, ≥ 100 lm/W",
+    normDetailEn: "150–200 lx living/beds, 300 lx kitchen, IP44 baths, ≥ 100 lm/W",
+    color: 0xfef08a,
+    focusPoint: [0.0, 3.8, 1.75],
+    cameraPos: [6.8, 5.6, 7.6],
+    parts: [
+      // Level 1 LED Panels (Sala, Comedor, Cocina, Baño Social, Hall)
+      { kind: "pipe", p0: [-2.0, 2.57, 1.75], p1: [-2.0, 2.6, 1.75], radius: 0.18, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [2.0, 2.57, 1.75], p1: [2.0, 2.6, 1.75], radius: 0.18, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [-1.25, 2.57, -1.75], p1: [-1.25, 2.6, -1.75], radius: 0.18, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [-3.1, 2.57, -2.55], p1: [-3.1, 2.6, -2.55], radius: 0.14, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [1.8, 2.57, -0.8], p1: [1.8, 2.6, -0.8], radius: 0.15, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      // Level 2 LED Panels (Hab Ppal, Hab 2, Hab 3, Baño 1)
+      { kind: "pipe", p0: [-2.0, 5.34, 1.75], p1: [-2.0, 5.37, 1.75], radius: 0.18, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [2.0, 5.34, 1.75], p1: [2.0, 5.37, 1.75], radius: 0.18, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [-2.8, 5.34, -1.9], p1: [-2.8, 5.37, -1.9], radius: 0.16, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+      { kind: "pipe", p0: [-0.95, 5.34, -2.05], p1: [-0.95, 5.37, -2.05], radius: 0.14, colorOverride: 0xfef9c3, emissive: 0xfde047 },
+    ],
+  },
+
+  // ---- HVAC DIFFUSERS & EXTRACTION (ASHRAE 62.1 & 90.1 / NTC) ----
+  {
+    id: "FIX-HVAC-TERM",
+    discipline: "HVAC",
+    category: "hvac",
+    roomEs: "Sala, Comedor, Alcobas, Cocina y Baños",
+    roomEn: "Living, Dining, Bedrooms, Kitchen & Baths",
+    levelEs: "Niveles 1 y 2",
+    levelEn: "Levels 1 & 2",
+    nameEs: "Difusores 4 Vías (5 uds) + Extractores Baño/Campana (ASHRAE 62.1)",
+    nameEn: "4-Way Diffusers (5) + Bath/Kitchen Exhaust Fans (ASHRAE 62.1)",
+    connectedToEs: "Acoplados a HVAC-N1-MAIN, HVAC-N1-BR, HVAC-N2-MAIN y HVAC-N2-BR",
+    connectedToEn: "Coupled to HVAC-N1-MAIN, HVAC-N1-BR, HVAC-N2-MAIN & HVAC-N2-BR",
+    normCode: "ASHRAE 62.1 / 90.1",
+    normDetailEs: "Extracción baños ≥ 25 L/s (50 CFM), campana cocina ≥ 50 L/s, estanqueidad ductos",
+    normDetailEn: "Bath exhaust ≥ 50 CFM, kitchen hood ≥ 100 CFM, sealed R-6 ducts",
+    color: 0x06b6d4,
+    focusPoint: [-0.8, 2.4, 0.5],
+    cameraPos: [4.8, 4.5, 5.8],
+    parts: [
+      // 4-way supply diffusers (N1 Sala, N1 Comedor, N2 Hab Ppal, N2 Hab 2, N2 Hab 3)
+      { kind: "box", x: -1.9, y: 2.38, z: 1.8, w: 0.42, h: 0.05, d: 0.42, colorOverride: 0x67e8f9 },
+      { kind: "box", x: 1.95, y: 2.36, z: 1.8, w: 0.42, h: 0.05, d: 0.42, colorOverride: 0x67e8f9 },
+      { kind: "box", x: -1.9, y: 5.34, z: 1.75, w: 0.42, h: 0.05, d: 0.42, colorOverride: 0x67e8f9 },
+      { kind: "box", x: 1.95, y: 5.34, z: 1.75, w: 0.42, h: 0.05, d: 0.42, colorOverride: 0x67e8f9 },
+      { kind: "box", x: -2.6, y: 5.34, z: -1.6, w: 0.38, h: 0.05, d: 0.38, colorOverride: 0x67e8f9 },
+      // Kitchen Range Hood over Stove (-0.80, 1.72, -3.02)
+      { kind: "box", x: -0.8, y: 1.72, z: -3.02, w: 0.72, h: 0.14, d: 0.52, colorOverride: 0x94a3b8 },
+      { kind: "box", x: -0.8, y: 2.15, z: -3.14, w: 0.24, h: 0.72, d: 0.22, colorOverride: 0x64748b },
+      // Bathroom mechanical exhaust fans (Baño Social N1 & Baño 1 N2)
+      { kind: "box", x: -3.1, y: 2.54, z: -2.95, w: 0.24, h: 0.08, d: 0.24, colorOverride: 0x0891b2 },
+      { kind: "box", x: -0.95, y: 5.34, z: -2.65, w: 0.24, h: 0.08, d: 0.24, colorOverride: 0x0891b2 },
+    ],
+  },
+
+  // ---- FIRE PROTECTION PCI (NSR-10 TÍTULOS J y K / NFPA 13-72) ----
+  {
+    id: "FIX-PCI-SAFETY",
+    discipline: "PCI",
+    category: "pci",
+    roomEs: "Hall Escalera N1/N2, Cocina y Salida",
+    roomEn: "Stair Hall L1/L2, Kitchen & Main Exit",
+    levelEs: "Niveles 1 y 2",
+    levelEn: "Levels 1 & 2",
+    nameEs: "Extintor ABC 10 lb + Detectores Humo (4 uds) + Señal Evacuación",
+    nameEn: "10 lb ABC Extinguisher + Smoke Detectors (4) + Exit Sign",
+    connectedToEs: "Columna PCI-RED-1 + lazo detección incendios NSR-10 J.4",
+    connectedToEn: "Fire riser PCI-RED-1 + NSR-10 J.4 detection loop",
+    normCode: "NSR-10 Tít. J y K",
+    normDetailEs: "Detección temprana J.4.2, extintor h≤1.50 m, señalización fotoluminiscente K.3.9",
+    normDetailEn: "Early smoke detection J.4.2, extinguisher h≤1.5 m, photoluminescent exit K.3.9",
+    color: 0xe11d48,
+    focusPoint: [0.35, 1.45, -1.1],
+    cameraPos: [3.1, 2.7, 1.4],
+    parts: [
+      // ABC Fire Extinguisher cylinder at Hall Escalera N1
+      { kind: "pipe", p0: [0.28, 1.02, -1.05], p1: [0.28, 1.48, -1.05], radius: 0.085, colorOverride: 0xdc2626 },
+      { kind: "box", x: 0.28, y: 1.54, z: -1.05, w: 0.08, h: 0.09, d: 0.08, colorOverride: 0x0f172a },
+      // Manual pull station
+      { kind: "box", x: 0.28, y: 1.32, z: -0.78, w: 0.05, h: 0.14, d: 0.12, colorOverride: 0xe11d48 },
+      // Photoluminescent Exit Sign above Main Door P-1 (x=1.0, y=2.25, z=3.35)
+      { kind: "box", x: 1.0, y: 2.26, z: 3.36, w: 0.34, h: 0.14, d: 0.05, colorOverride: 0x22c55e, emissive: 0x16a34a },
+      // 4 Photoelectric Smoke / Thermal Detectors (Hall N1, Cocina, Hall N2, Hab Ppal)
+      { kind: "pipe", p0: [1.55, 2.82, -0.8], p1: [1.55, 2.87, -0.8], radius: 0.075, colorOverride: 0xf8fafc, emissive: 0xe11d48 },
+      { kind: "pipe", p0: [-1.25, 2.82, -1.1], p1: [-1.25, 2.87, -1.1], radius: 0.075, colorOverride: 0xf8fafc, emissive: 0xe11d48 },
+      { kind: "pipe", p0: [1.55, 5.33, -0.8], p1: [1.55, 5.38, -0.8], radius: 0.075, colorOverride: 0xf8fafc, emissive: 0xe11d48 },
+      { kind: "pipe", p0: [-1.6, 5.33, 1.1], p1: [-1.6, 5.38, 1.1], radius: 0.075, colorOverride: 0xf8fafc, emissive: 0xe11d48 },
+    ],
+  },
+];
+
+/**
+ * Regulatory & Standards Compliance Matrix requested for residential BIM MEP coordination in Colombia.
+ */
+export const NORMATIVE_STANDARDS_CATALOG: NormativeStandardSummary[] = [
+  {
+    id: "STD-ELEC",
+    discipline: "ELEC",
+    code: "RETIE & NTC 2050",
+    titleEs: "Instalaciones Eléctricas Residenciales",
+    titleEn: "Residential Electrical Installations",
+    requirementsEs:
+      "Tableros TG-N1/ST-N2 con puesta a tierra (SPT), tomas GFCI 20A en baños y cocina (Sec. 210.8), separación reglamentaria frente a redes hidráulicas y de gas.",
+    requirementsEn:
+      "Grounded panels TG-N1/ST-N2, mandatory 20A GFCI outlets in kitchen & baths (NEC 210.8), code clearance from water & gas lines.",
+    colorHex: "#ef4444",
+    focusPoint: [0.65, 1.65, -0.26],
+    cameraPos: [3.2, 2.6, 2.2],
+  },
+  {
+    id: "STD-ILUM",
+    discipline: "ELEC",
+    code: "RETILAP",
+    titleEs: "Iluminación Interior Eficiente",
+    titleEn: "Interior Lighting Standards",
+    requirementsEs:
+      "9 luminarias LED empotradas (≥ 100 lm/W): 150–200 lx en alcobas/sala, 300 lx en plano de trabajo de cocina y grado hermético IP44 en baños.",
+    requirementsEn:
+      "9 recessed LED panels (≥ 100 lm/W): 150–200 lx living/bedrooms, 300 lx kitchen counter, IP44 damp-rated in baths.",
+    colorHex: "#eab308",
+    focusPoint: [0.0, 3.8, 1.75],
+    cameraPos: [7.2, 5.8, 7.6],
+  },
+  {
+    id: "STD-PLU",
+    discipline: "PLU",
+    code: "NTC 1500 & RAS",
+    titleEs: "Plomería, Hidrosanitarias y Pluvial",
+    titleEn: "Plumbing, Sanitary & Stormwater",
+    requirementsEs:
+      "Aparatos de bajo consumo (WC 4.8 L), sifones con sello hidráulico 50 mm, colectores PVC Ø 4\" con pendiente 2%, tanque reserva 1,000 L y bajante pluvial Ø 4\" BLL-1.",
+    requirementsEn:
+      "Low-flow fixtures (4.8 LPF), 50 mm trap seals, 4\" sanitary collectors at 2% slope, 1,000 L reserve tank & 4\" roof drain BLL-1.",
+    colorHex: "#2563eb",
+    focusPoint: [-2.1, 1.4, -2.7],
+    cameraPos: [-0.2, 3.3, 0.4],
+  },
+  {
+    id: "STD-HVAC",
+    discipline: "HVAC",
+    code: "ASHRAE 62.1 / 90.1 & NTC",
+    titleEs: "Mecánicas, Climatización y Ventilación",
+    titleEn: "HVAC, Ventilation & Energy Efficiency",
+    requirementsEs:
+      "Condensadora Inverter SEER 18 (ASHRAE 90.1), ductería aislada R-6 con 5 difusores 4 vías, extractores en baños ≥ 50 CFM y campana extractora cocina (ASHRAE 62.1).",
+    requirementsEn:
+      "SEER 18 Inverter condensing unit (ASHRAE 90.1), R-6 insulated ducts w/ 5 diffusers, ≥ 50 CFM bath exhaust & kitchen hood (ASHRAE 62.1).",
+    colorHex: "#06b6d4",
+    focusPoint: [-1.0, 3.6, 0.5],
+    cameraPos: [5.4, 5.2, 6.2],
+  },
+  {
+    id: "STD-PCI",
+    discipline: "PCI",
+    code: "NSR-10 Títulos J y K",
+    titleEs: "Protección Contra Incendios (PCI)",
+    titleEn: "Fire Protection & Life Safety",
+    requirementsEs:
+      "Columna roja PCI Ø 1½\" con rociadores despejados de ductos, 4 detectores fotoeléctricos de humo (J.4.2), extintor multipropósito ABC 10 lb y señal salida K.3.9.",
+    requirementsEn:
+      "1½\" code-red fire branch clear of ducts, 4 photoelectric smoke detectors (J.4.2), 10 lb ABC extinguisher & exit signage K.3.9.",
+    colorHex: "#e11d48",
+    focusPoint: [0.4, 1.8, -0.5],
+    cameraPos: [3.6, 3.2, 2.4],
+  },
+  {
+    id: "STD-GAS",
+    discipline: "GAS",
+    code: "NTC 2505 & NTC 3631",
+    titleEs: "Redes Residenciales de Gas Natural",
+    titleEn: "Residential Natural Gas Piping",
+    requirementsEs:
+      "Medidor ventilado en fachada, tubería amarilla PE-AL-PE Ø ¾\" con válvulas individuales para estufa y calentador, ducto evacuación gases y separación de circuitos eléctricos.",
+    requirementsEn:
+      "Vented facade meter, code-yellow 3/4\" PE-AL-PE piping with individual shutoffs for stove & heater, flue duct & electrical separation.",
+    colorHex: "#ca8a04",
+    focusPoint: [-1.7, 1.25, -2.9],
+    cameraPos: [0.3, 2.4, -0.5],
+  },
+];
+
+/**
+ * Curated Navisworks-style Clash Detective Rule Definitions for PORTICO-2N (8 Real 3D Clashes).
  */
 export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
   {
@@ -581,7 +1170,7 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
       "Descolgar el ducto 32 cm con transición en bayoneta para pasar 80 mm libre por debajo del fondo de viga VE-B (+2.60 m).",
     solutionEn:
       "Apply 32 cm soffit offset drop to route duct 80 mm clear underneath beam VE-B soffit (+2.60 m).",
-    normRef: "NSR-10 C.6.3 / ACI 318 (Prohibición de pases no diseñados en vigas sísmicas)",
+    normRef: "NSR-10 C.6.3 / ASHRAE 90.1",
     reworkSavingsCop: 4_850_000,
   },
   {
@@ -605,7 +1194,7 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
       "Reconfigurar sección a ducto plano equivalente 36×10 cm (misma área hidráulica) a cota +5.42 m en plenum de drywall.",
     solutionEn:
       "Convert to equivalent flat low-profile 36×10 cm duct routed at +5.42 m inside drywall ceiling plenum.",
-    normRef: "ASHRAE Duct Sizing / NSR-10 C.6.3",
+    normRef: "ASHRAE 62.1 & 90.1 / NSR-10 C.6.3",
     reworkSavingsCop: 3_400_000,
   },
   {
@@ -629,7 +1218,7 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
       "Invertir pendiente (2%) hacia el Oeste conectando directamente al bajante vertical SAN-1 en el ducto húmedo sin cruzar vigas.",
     solutionEn:
       "Reverse 2% gravity slope West into vertical soil stack SAN-1 inside wet chase with zero beam crossings.",
-    normRef: "NTC 1500 (Fontanería) / NSR-10 C.6.3",
+    normRef: "NTC 1500 & RAS / NSR-10 C.6.3",
     reworkSavingsCop: 2_950_000,
   },
   {
@@ -653,8 +1242,32 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
       "Desplazar montante 40 cm hacia el ducto técnico interior (-3.52, -3.05) con pase coordinado en losa L-2, respetando NSR-10.",
     solutionEn:
       "Offset riser 40 cm into dedicated interior MEP chase (-3.52, -3.05) with coordinated sleeve in slab L-2.",
-    normRef: "NSR-10 C.6.3.4 (Prohibición de tuberías embebidas en columnas)",
+    normRef: "NSR-10 C.6.3.4 / NTC 1500",
     reworkSavingsCop: 1_450_000,
+  },
+  {
+    id: "CLH-007",
+    testSet: "MEP vs. MEP",
+    disciplineA: "ELEC",
+    disciplineB: "GAS",
+    elementAId: "ELEC-PANELS",
+    elementBId: "GAS-RED-1",
+    severity: "critical",
+    levelEs: "Nivel 1 — Cocina (+2.12 m)",
+    levelEn: "Level 1 — Kitchen (+2.12 m)",
+    gridRef: "Eje 1–2 / A",
+    titleEs: "Tubería Gas Natural cruza Bajante Eléctrica GFCI Cocina (NTC 2505)",
+    titleEn: "Natural Gas Pipe intersects Kitchen GFCI Electrical Conduit (NTC 2505)",
+    causeEs:
+      "El ramal de gas PE-AL-PE Ø ¾\" a cota +2.12 m impacta la bajante EMT del circuito GFCI de mesón cocina, violando la separación mínima de seguridad.",
+    causeEn:
+      "3/4\" PE-AL-PE natural gas header at +2.12 m collides directly with the kitchen GFCI electrical drop conduit.",
+    solutionEs:
+      "Reubicar el colector horizontal de gas a cota baja +0.68 m bajo mesón dejando 470 mm de separación libre respecto al punto eléctrico GFCI (+1.15 m).",
+    solutionEn:
+      "Relocate horizontal gas header to lower under-counter manifold (+0.68 m) maintaining 470 mm separation from GFCI outlet conduit.",
+    normRef: "NTC 2505 / RETIE / NTC 2050",
+    reworkSavingsCop: 2_350_000,
   },
   {
     id: "CLH-004",
@@ -677,7 +1290,7 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
       "Instalar paso inferior tipo trapecio Unistrut en la bandeja eléctrica a cota +2.26 m dejando 80 mm libres bajo el ducto HVAC.",
     solutionEn:
       "Add Unistrut drop trapeze offset on cable tray at +2.26 m providing 80 mm clear separation under HVAC duct.",
-    normRef: "RETIE Art. 20 / Coordinación MEP ISO 19650",
+    normRef: "RETIE Art. 20 / RETILAP / ASHRAE",
     reworkSavingsCop: 1_650_000,
   },
   {
@@ -692,17 +1305,41 @@ export const PORTICO_2N_CLASH_RULES: ClashRuleMeta[] = [
     levelEn: "Level 2 (+3.65 m)",
     gridRef: "Eje 1–2 / A",
     titleEs: "Alimentador Eléctrico N2 cruza Montante Agua Potable (RETIE)",
-    titleEn: "Level 2 Electrical Feeder intersects Potable Water Riser (NEC/RETIE)",
+    titleEn: "Level 2 Electrical Feeder intersects Potable Water Riser (RETIE/NEC)",
     causeEs:
       "La canalización eléctrica de Nivel 2 intersecta la tubería vertical de agua fría AF-MONT-1 violando separación mínima de seguridad eléctrica.",
     causeEn:
       "Level 2 electrical feeder tray intersects vertical cold-water riser AF-MONT-1 violating wet-zone electrical clearance.",
     solutionEs:
-      "Desplazar corredor eléctrico 45 cm al Sur (z = -2.70 m) garantizando separación reglamentaria RETIE respecto a tubería hidráulica.",
+      "Elevar corredor eléctrico a cota +4.35 m (nivel subtablero ST-N2) y desplazarlo 50 cm al Sur (z = -2.65 m), superando la separación RETIE respecto a montantes y ramales hidráulicos.",
     solutionEn:
-      "Shift electrical corridor 45 cm South (z = -2.70 m) maintaining code-compliant clearance from potable water riser.",
-    normRef: "RETIE / NTC 2050 (Separación redes eléctricas e hidráulicas)",
+      "Raise electrical corridor to +4.35 m (subpanel ST-N2 level) and shift 50 cm South (z = -2.65 m) clearing all water risers and fixture stubs per RETIE/NEC.",
+    normRef: "RETIE / NTC 2050 / NTC 1500",
     reworkSavingsCop: 1_900_000,
+  },
+  {
+    id: "CLH-008",
+    testSet: "MEP vs. MEP",
+    disciplineA: "HVAC",
+    disciplineB: "PCI",
+    elementAId: "HVAC-N1-BR",
+    elementBId: "PCI-RED-1",
+    severity: "major",
+    levelEs: "Nivel 1 — Comedor (+2.46 m)",
+    levelEn: "Level 1 — Dining (+2.46 m)",
+    gridRef: "Eje 2–3 / B–C",
+    titleEs: "Ramal Contra Incendios PCI colisiona con Ducto HVAC Comedor",
+    titleEn: "Fire Sprinkler Branch PCI collides with Dining HVAC Duct",
+    causeEs:
+      "La tubería roja PCI Ø 1½\" cruza al mismo nivel (+2.46 m) que el ducto de aire HVAC-N1-BR, impidiendo montaje y obstruyendo el patrón de descarga.",
+    causeEn:
+      "1½\" code-red fire branch runs at the exact same +2.46 m elevation as HVAC-N1-BR, obstructing sprinkler discharge coverage.",
+    solutionEs:
+      "Elevar el ramal PCI a +2.76 m y desplazarlo 62 cm al Norte (z = +1.18 m), garantizando patrón libre de rociado según NSR-10 Título J.",
+    solutionEn:
+      "Raise PCI branch to +2.76 m and offset 62 cm North (z = +1.18 m) to satisfy NSR-10 Title J / NFPA 13 obstruction rules.",
+    normRef: "NSR-10 Títulos J y K / NFPA 13",
+    reworkSavingsCop: 1_850_000,
   },
 ];
 
@@ -719,10 +1356,6 @@ export function getActiveMepParts(
   return el.parts;
 }
 
-/**
- * Computes exact AABB overlap between two sets of Box3 with an optional tolerance (meters).
- * Positive tolerance checks clearance violations (Navisworks Clearance Test); 0 = Hard Clash.
- */
 function intersectBoxArrays(
   boxesA: THREE.Box3[],
   boxesB: THREE.Box3[],
@@ -749,7 +1382,6 @@ function intersectBoxArrays(
       inter.getSize(sz);
       inter.getCenter(ctr);
 
-      // Minimum overlap axis represents real penetration depth in Navisworks
       const minAxisM = Math.min(sz.x, sz.y, sz.z);
       if (minAxisM <= 0.0005) continue;
       const penMm = Math.round(minAxisM * 1000);
@@ -774,7 +1406,7 @@ function intersectBoxArrays(
 }
 
 /**
- * Executes real-time 3D Clash Detection across PORTICO-2N structural targets & MEP elements.
+ * Executes real-time 3D Clash Detection across PORTICO-2N structural targets & 5 MEP disciplines.
  */
 export function runMepClashDetection(opts: {
   resolvedRuleIds: Set<string>;
@@ -812,10 +1444,8 @@ export function runMepClashDetection(opts: {
     const boxesA = strA ? [strA.box] : mepBoxesMap.get(rule.elementAId) || [];
     const boxesB = mepBoxesMap.get(rule.elementBId) || [];
 
-    // Compute live geometric intersection on current state
     const live = intersectBoxArrays(boxesA, boxesB, tolM);
 
-    // Also compute original Pre-BIM centroid so user can still fly camera to resolved clash spot!
     const preBoxesA = strA ? [strA.box] : mepPreBoxesMap.get(rule.elementAId) || [];
     const preBoxesB = mepPreBoxesMap.get(rule.elementBId) || [];
     const baseline = intersectBoxArrays(preBoxesA, preBoxesB, 0);
@@ -843,9 +1473,6 @@ export function runMepClashDetection(opts: {
   return results;
 }
 
-/**
- * Exports Clash Matrix to an Autodesk Navisworks Clash Detective compatible XML report (.xml).
- */
 export function buildNavisworksXmlReport(
   projectName: string,
   clashes: DetectedClash[],
@@ -870,7 +1497,7 @@ export function buildNavisworksXmlReport(
       return `        <clashresult name="${esc(c.id)} - ${esc(c.titleEs)}" guid="jgm-p2n-${esc(
         c.id.toLowerCase()
       )}" status="${nwStatus}" distance="-${(c.penetrationMm / 1000).toFixed(3)}">
-          <description>${esc(c.causeEs)} | Solucion: ${esc(c.solutionEs)}</description>
+          <description>${esc(c.causeEs)} | Norma: ${esc(c.normRef)} | Solucion: ${esc(c.solutionEs)}</description>
           <gridlocation>${esc(c.gridRef)} : ${esc(c.levelEs)}</gridlocation>
           <clashpoint>
             <pos3f x="${c.point[0]}" y="${c.point[1]}" z="${c.point[2]}" />
@@ -904,10 +1531,10 @@ export function buildNavisworksXmlReport(
   return `<?xml version="1.0" encoding="UTF-8"?>
 <exchange xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" units="m" filename="${esc(
     projectName
-  )}_PORTICO2N_MEP.nwf">
-  <batchtest name="JGM ConTech - Coordinacion MEP PORTICO-2N" internal_name="jgm_mep_batch" units="m">
+  )}_PORTICO2N_MEP_FULL.nwf">
+  <batchtest name="JGM ConTech - Coordinacion MEP Integral PORTICO-2N" internal_name="jgm_mep_batch" units="m">
     <clashtests>
-      <clashtest name="STR vs MEP &amp; MEP vs MEP (Tolerance ${(toleranceMm / 1000).toFixed(
+      <clashtest name="STR / HVAC / PLU / ELEC / GAS / PCI (Tolerance ${(toleranceMm / 1000).toFixed(
         3
       )} m)" test_type="hard" status="ok" tolerance="${(toleranceMm / 1000).toFixed(3)}">
         <summary total="${clashes.length}" new="${activeCount}" active="${activeCount}" reviewed="${reviewCount}" approved="0" resolved="${resolvedCount}">
@@ -923,9 +1550,6 @@ ${resultXml}
 </exchange>`;
 }
 
-/**
- * Parses an authentic Autodesk Navisworks Clash Detective XML report (.xml) uploaded by the user.
- */
 export function parseNavisworksXmlReport(xmlText: string): ImportedNavisworksClash[] {
   if (typeof DOMParser === "undefined") return [];
   const parser = new DOMParser();
@@ -952,8 +1576,8 @@ export function parseNavisworksXmlReport(xmlText: string): ImportedNavisworksCla
     const readObjLabel = (o: Element | undefined, fallback: string) => {
       if (!o) return fallback;
       const tags = Array.from(o.querySelectorAll("smarttag"));
-      const itemTag = tags.find(
-        (t) => t.querySelector("name")?.textContent?.toLowerCase().includes("item")
+      const itemTag = tags.find((t) =>
+        t.querySelector("name")?.textContent?.toLowerCase().includes("item")
       );
       if (itemTag?.querySelector("value")?.textContent) {
         return itemTag.querySelector("value")!.textContent!.trim();
@@ -990,15 +1614,21 @@ export function parseNavisworksXmlReport(xmlText: string): ImportedNavisworksCla
   return out;
 }
 
-/**
- * Exports OpenBIM BCF-compatible JSON issues package with 3D camera viewpoints.
- */
 export function buildBcfJsonReport(projectName: string, clashes: DetectedClash[]): string {
   const payload = {
     schema: "OpenBIM-BCF-v3.0-JSON",
     platform: "JGM ConTech • Gerencia BIM 5D",
     project: projectName,
-    model: "PORTICO-2N (STR + MEP)",
+    model: "PORTICO-2N (STR + HVAC + PLU + ELEC + GAS + PCI + Fixtures)",
+    standards: [
+      "RETIE",
+      "NTC 2050",
+      "RETILAP",
+      "NTC 1500 & RAS",
+      "ASHRAE 62.1 & 90.1",
+      "NSR-10 Títulos J y K",
+      "NTC 2505",
+    ],
     generated_at: new Date().toISOString(),
     topics: clashes.map((c) => ({
       guid: `bcf-p2n-${c.id.toLowerCase()}`,
@@ -1026,9 +1656,6 @@ export function buildBcfJsonReport(projectName: string, clashes: DetectedClash[]
   return JSON.stringify(payload, null, 2);
 }
 
-/**
- * Exports Excel-ready UTF-8 CSV Clash Matrix.
- */
 export function buildClashCsvReport(clashes: DetectedClash[], lang: "es" | "en"): string {
   const isEn = lang === "en";
   const headers = isEn
@@ -1043,6 +1670,7 @@ export function buildClashCsvReport(clashes: DetectedClash[], lang: "es" | "en")
         "Element B",
         "Level",
         "Grid",
+        "Norm / Code",
         "Penetration (mm)",
         "Coord X (m)",
         "Coord Y (m)",
@@ -1061,6 +1689,7 @@ export function buildClashCsvReport(clashes: DetectedClash[], lang: "es" | "en")
         "Elemento B",
         "Nivel",
         "Eje",
+        "Norma Aplicable",
         "Penetracion (mm)",
         "Coord X (m)",
         "Coord Y (m)",
@@ -1082,6 +1711,7 @@ export function buildClashCsvReport(clashes: DetectedClash[], lang: "es" | "en")
       isEn ? c.elementBNameEn : c.elementBNameEs,
       isEn ? c.levelEn : c.levelEs,
       c.gridRef,
+      c.normRef,
       c.penetrationMm,
       c.point[0],
       c.point[1],
