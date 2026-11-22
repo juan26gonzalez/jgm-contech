@@ -7,6 +7,90 @@ import {
   RoomActivityKey,
 } from "./types";
 
+export const CASA_MENDOZA_ROOM_ORDER: string[] = [
+  "Habitación Mamá",
+  "Habitación Esteban",
+  "Habitación Nan & I",
+  "Habitación Abuelos",
+  "Habitación Lisbeth",
+  "Habitación Huésped",
+  "Sala",
+  "Cocina",
+  "Baño 1",
+  "Entrada / Puerta 1",
+  "Entrada / Puerta 2",
+];
+
+/**
+ * Dataset exacto por habitación extraído de Revit 2027 — Casa Mendoza 1.1.rvt:
+ * - Plantilla de concreto 7cm (11 zonas = 110 m²)
+ * - Enchape piso porcelanato 51x51 (11 zonas = 111 m²)
+ * - Cielo raso + Frescasa Eco 2-1/2" (9 zonas = 88 m²)
+ */
+export const CASA_MENDOZA_ROOMS_BASE: RoomActivityItem[] = [
+  // Habitación Mamá (12 m²)
+  { id: "cm-hmom-plantilla", room: "Habitación Mamá", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H mom", unit: "m²", quantity: 12 },
+  { id: "cm-hmom-enchape", room: "Habitación Mamá", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Mom", unit: "m²", quantity: 12 },
+  { id: "cm-hmom-cielorraso", room: "Habitación Mamá", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Mom", unit: "m²", quantity: 12 },
+  { id: "cm-hmom-frescasa", room: "Habitación Mamá", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Mom", unit: "m²", quantity: 12 },
+
+  // Habitación Esteban (8 m²)
+  { id: "cm-hesteban-plantilla", room: "Habitación Esteban", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Esteban", unit: "m²", quantity: 8 },
+  { id: "cm-hesteban-enchape", room: "Habitación Esteban", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Esteban", unit: "m²", quantity: 8 },
+  { id: "cm-hesteban-cielorraso", room: "Habitación Esteban", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Esteban", unit: "m²", quantity: 8 },
+  { id: "cm-hesteban-frescasa", room: "Habitación Esteban", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Esteban", unit: "m²", quantity: 8 },
+
+  // Habitación Nan & I (10 m²)
+  { id: "cm-hnan-plantilla", room: "Habitación Nan & I", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Nan & I", unit: "m²", quantity: 10 },
+  { id: "cm-hnan-enchape", room: "Habitación Nan & I", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Nan & I", unit: "m²", quantity: 10 },
+  { id: "cm-hnan-cielorraso", room: "Habitación Nan & I", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Nan & I", unit: "m²", quantity: 10 },
+  { id: "cm-hnan-frescasa", room: "Habitación Nan & I", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Nan & I", unit: "m²", quantity: 10 },
+
+  // Habitación Abuelos (7 m²)
+  { id: "cm-habuelos-plantilla", room: "Habitación Abuelos", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Abuelos", unit: "m²", quantity: 7 },
+  { id: "cm-habuelos-enchape", room: "Habitación Abuelos", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Abuelos", unit: "m²", quantity: 7 },
+  { id: "cm-habuelos-cielorraso", room: "Habitación Abuelos", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Abuelos", unit: "m²", quantity: 7 },
+  { id: "cm-habuelos-frescasa", room: "Habitación Abuelos", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Abuelos", unit: "m²", quantity: 7 },
+
+  // Habitación Lisbeth (10 m²)
+  { id: "cm-hlisbeth-plantilla", room: "Habitación Lisbeth", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Lisbeth", unit: "m²", quantity: 10 },
+  { id: "cm-hlisbeth-enchape", room: "Habitación Lisbeth", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Lisbeth", unit: "m²", quantity: 10 },
+  { id: "cm-hlisbeth-cielorraso", room: "Habitación Lisbeth", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Lisbeth", unit: "m²", quantity: 10 },
+  { id: "cm-hlisbeth-frescasa", room: "Habitación Lisbeth", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Lisbeth", unit: "m²", quantity: 10 },
+
+  // Habitación Huésped (5 m²)
+  { id: "cm-hhuesped-plantilla", room: "Habitación Huésped", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Huesped", unit: "m²", quantity: 5 },
+  { id: "cm-hhuesped-enchape", room: "Habitación Huésped", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso Huesped", unit: "m²", quantity: 5 },
+  { id: "cm-hhuesped-cielorraso", room: "Habitación Huésped", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Huesped", unit: "m²", quantity: 5 },
+  { id: "cm-hhuesped-frescasa", room: "Habitación Huésped", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Huesped", unit: "m²", quantity: 5 },
+
+  // Sala (19 m²)
+  { id: "cm-sala-plantilla", room: "Sala", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Sala", unit: "m²", quantity: 19 },
+  { id: "cm-sala-enchape", room: "Sala", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso Sala", unit: "m²", quantity: 19 },
+  { id: "cm-sala-cielorraso", room: "Sala", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Sala", unit: "m²", quantity: 19 },
+  { id: "cm-sala-frescasa", room: "Sala", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Sala", unit: "m²", quantity: 19 },
+
+  // Cocina (14 m²)
+  { id: "cm-cocina-plantilla", room: "Cocina", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Cocina", unit: "m²", quantity: 14 },
+  { id: "cm-cocina-enchape", room: "Cocina", activityKey: "enchape", activityLabel: "Enchape piso porcelanato cocina 51x51", sourceComment: "Enchape piso Cocina", unit: "m²", quantity: 14 },
+  { id: "cm-cocina-cielorraso", room: "Cocina", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Cocina", unit: "m²", quantity: 14 },
+  { id: "cm-cocina-frescasa", room: "Cocina", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Cocina", unit: "m²", quantity: 14 },
+
+  // Baño 1 (3 m²)
+  { id: "cm-bano1-plantilla", room: "Baño 1", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Baño 1", unit: "m²", quantity: 3 },
+  { id: "cm-bano1-enchape", room: "Baño 1", activityKey: "enchape", activityLabel: "Enchape piso porcelanato baño 51x51", sourceComment: "Enchape piso Baño 1", unit: "m²", quantity: 3 },
+  { id: "cm-bano1-cielorraso", room: "Baño 1", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Baño 1", unit: "m²", quantity: 3 },
+  { id: "cm-bano1-frescasa", room: "Baño 1", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Baño 1", unit: "m²", quantity: 3 },
+
+  // Entrada / Puerta 1 (13 m²)
+  { id: "cm-puerta1-plantilla", room: "Entrada / Puerta 1", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto puerta 1", unit: "m²", quantity: 13 },
+  { id: "cm-puerta1-enchape", room: "Entrada / Puerta 1", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso entrada 1", unit: "m²", quantity: 13 },
+
+  // Entrada / Puerta 2 (9 m² plantilla / 10 m² enchape)
+  { id: "cm-puerta2-plantilla", room: "Entrada / Puerta 2", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto puerta 2", unit: "m²", quantity: 9 },
+  { id: "cm-puerta2-enchape", room: "Entrada / Puerta 2", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso entrada 2", unit: "m²", quantity: 10 },
+];
+
 export const RESIDENTIAL_PROTO_ROOM_ORDER: string[] = [
   "Sala",
   "Comedor",
@@ -480,6 +564,11 @@ export function resolveUnitPriceForRoomItem(
 export function normalizeRevitRoomName(rawSuffix: string): string {
   const n = normalizarTexto(rawSuffix).replace(/\s+/g, " ");
   if (!n) return "General / Sin Habitación";
+  if (n.includes("mom") || n.includes("mama")) return "Habitación Mamá";
+  if (n.includes("esteban")) return "Habitación Esteban";
+  if (n.includes("nan")) return "Habitación Nan & I";
+  if (n.includes("abuelo")) return "Habitación Abuelos";
+  if (n.includes("lisbeth")) return "Habitación Lisbeth";
   if (n.includes("principal") || n.includes("master")) return "Habitación Principal";
   if (n.includes("hab 1") || n.includes("habitacion 1")) return "Habitación 1";
   if (n.includes("hab 2") || n.includes("habitacion 2")) return "Habitación 2";
@@ -859,6 +948,9 @@ export function computeMaterialsForRoomSelection(
 export function getInitialRoomItemsForProject(proyecto: ProjectConfig): RoomActivityItem[] {
   if (proyecto.zonas_bim && proyecto.zonas_bim.length > 0) {
     return proyecto.zonas_bim;
+  }
+  if (proyecto.id === "casa_mendoza") {
+    return CASA_MENDOZA_ROOMS_BASE.map((item) => ({ ...item }));
   }
   if (proyecto.id === "proto_residencial") {
     return RESIDENTIAL_PROTO_ROOMS_BASE.map((item) => ({ ...item }));

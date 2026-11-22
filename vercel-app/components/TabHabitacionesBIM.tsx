@@ -25,6 +25,8 @@ import {
 import { callPythonJson, normalizarTexto } from "../lib/calcClient";
 import { useAppPreferences } from "../lib/i18n";
 import {
+  CASA_MENDOZA_ROOM_ORDER,
+  CASA_MENDOZA_ROOMS_BASE,
   RESIDENTIAL_PROTO_ROOM_ORDER,
   RESIDENTIAL_PROTO_ROOMS_BASE,
   computeExecutedByRoomItem,
@@ -169,15 +171,14 @@ export default function TabHabitacionesBIM({
   const [busqueda, setBusqueda] = useState<string>("");
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
-    const hasMain = roomItems.some((r) => r.room === "Habitación Principal");
-    if (hasMain) {
+    const defaultRoom = roomItems.some((r) => r.room === "Habitación Lisbeth")
+      ? "Habitación Lisbeth"
+      : roomItems.some((r) => r.room === "Habitación Principal")
+      ? "Habitación Principal"
+      : roomItems[0]?.room;
+    if (defaultRoom) {
       for (const r of roomItems) {
-        if (r.room === "Habitación Principal") init[r.id] = true;
-      }
-    } else if (roomItems.length > 0) {
-      const firstRoom = roomItems[0].room;
-      for (const r of roomItems) {
-        if (r.room === firstRoom) init[r.id] = true;
+        if (r.room === defaultRoom) init[r.id] = true;
       }
     }
     return init;
@@ -186,15 +187,14 @@ export default function TabHabitacionesBIM({
   useEffect(() => {
     const next: Record<string, boolean> = {};
     const items = getInitialRoomItemsForProject(proyecto);
-    const hasMain = items.some((r) => r.room === "Habitación Principal");
-    if (hasMain) {
+    const defaultRoom = items.some((r) => r.room === "Habitación Lisbeth")
+      ? "Habitación Lisbeth"
+      : items.some((r) => r.room === "Habitación Principal")
+      ? "Habitación Principal"
+      : items[0]?.room;
+    if (defaultRoom) {
       for (const r of items) {
-        if (r.room === "Habitación Principal") next[r.id] = true;
-      }
-    } else if (items.length > 0) {
-      const firstRoom = items[0].room;
-      for (const r of items) {
-        if (r.room === firstRoom) next[r.id] = true;
+        if (r.room === defaultRoom) next[r.id] = true;
       }
     }
     setSelectedIds(next);
@@ -245,8 +245,10 @@ export default function TabHabitacionesBIM({
       map.set(item.room, arr);
     }
 
+    const orderList =
+      proyecto.id === "casa_mendoza" ? CASA_MENDOZA_ROOM_ORDER : RESIDENTIAL_PROTO_ROOM_ORDER;
     const orderIdx = (name: string) => {
-      const idx = RESIDENTIAL_PROTO_ROOM_ORDER.indexOf(name);
+      const idx = orderList.indexOf(name);
       return idx >= 0 ? idx : 999;
     };
 
@@ -409,15 +411,22 @@ export default function TabHabitacionesBIM({
 
   const handleRestoreBase = () => {
     const restored =
-      proyecto.id === "proto_residencial"
+      proyecto.id === "casa_mendoza"
+        ? CASA_MENDOZA_ROOMS_BASE.map((it) => ({ ...it }))
+        : proyecto.id === "proto_residencial"
         ? RESIDENTIAL_PROTO_ROOMS_BASE.map((it) => ({ ...it }))
         : [];
     onUpdateProyecto({ ...proyecto, zonas_bim: restored });
     setImportStatus({
       type: "ok",
-      msg: isEn
-        ? "Residential prototype room baseline restored."
-        : "Datos base por habitación del Prototipo Residencial restaurados.",
+      msg:
+        proyecto.id === "casa_mendoza"
+          ? isEn
+            ? "Casa Mendoza room baseline restored."
+            : "Datos base por habitación de Casa Mendoza 1.1.rvt restaurados."
+          : isEn
+          ? "Residential prototype room baseline restored."
+          : "Datos base por habitación del Prototipo Residencial restaurados.",
     });
   };
 
@@ -648,13 +657,17 @@ export default function TabHabitacionesBIM({
             <span>{isEn ? "Unit Prices" : "Precios Unitarios"}</span>
           </button>
 
-          {proyecto.id === "proto_residencial" && (
+          {(proyecto.id === "casa_mendoza" || proyecto.id === "proto_residencial") && (
             <button
               type="button"
               onClick={handleRestoreBase}
               className="px-3 py-2 rounded-xl text-xs font-bold border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 inline-flex items-center gap-1.5"
               title={
-                isEn
+                proyecto.id === "casa_mendoza"
+                  ? isEn
+                    ? "Restore baseline measurements from Casa Mendoza 1.1.rvt"
+                    : "Restaurar mediciones base tomadas de Casa Mendoza 1.1.rvt"
+                  : isEn
                   ? "Restore baseline measurements from Prototipo Residencial 1.1.rvt"
                   : "Restaurar mediciones base tomadas de Prototipo Residencial 1.1.rvt"
               }

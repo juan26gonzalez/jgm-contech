@@ -397,7 +397,7 @@ export function filtrarBitacoraPorProyecto(
     }
 
     if (actTxt.includes("bim_takeoff") || actTxt.includes("takeoff")) {
-      if (proyId === "proto_residencial" && !esSoloPpto) {
+      if ((proyId === "casa_mendoza" || proyId === "proto_residencial") && !esSoloPpto) {
         validos.push(row);
       }
       continue;
@@ -410,7 +410,11 @@ export function filtrarBitacoraPorProyecto(
       continue;
     }
 
-    if (proyId === "proto_residencial") {
+    if (proyId === "casa_mendoza") {
+      if (actTxt.includes("mendoza") || actTxt.includes("sabanalarga")) {
+        validos.push(row);
+      }
+    } else if (proyId === "proto_residencial") {
       if (actTxt.includes("proto_residencial") || actTxt.includes("prototipo bim")) {
         validos.push(row);
       }
@@ -473,7 +477,10 @@ export function calcularConsolidacionLocal(
     return bestItem;
   };
 
-  if (proyecto.tipo !== "presupuesto" && proyecto.id === "proto_residencial") {
+  if (
+    proyecto.tipo !== "presupuesto" &&
+    (proyecto.id === "casa_mendoza" || proyecto.id === "proto_residencial")
+  ) {
     for (const row of obraActiva) {
       const actTxt = normalizarTexto(String(row.actividad || ""));
       if (actTxt.includes("bim_takeoff") || actTxt.includes("takeoff")) {

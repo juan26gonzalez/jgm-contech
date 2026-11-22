@@ -72,6 +72,7 @@ export default function Sidebar({
   const proyectoActual = proyectos[proyectoActivoId] || Object.values(proyectos)[0];
 
   const getOptionLabel = (p: ProjectConfig) => {
+    if (p.id === "casa_mendoza") return "🏡 Remodelación Casa Mendoza";
     if (p.id === "proto_residencial") return "Vivienda Prototipo BIM 1.1";
     if (p.id === "proto_corporativo") return "Edificio Modelo 3 Niveles";
     if (p.id === "demo_showcase") return p.nombre;

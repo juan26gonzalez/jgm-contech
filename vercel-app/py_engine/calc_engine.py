@@ -36,9 +36,9 @@ def filtrar_bitacora_por_proyecto(df_bitacora, proyecto_actual):
         if "msproject_sync" in act_txt:
             continue
 
-        # 1. Metrados BIM ([BIM_TAKEOFF]) para prototipo residencial (modo BIM)
+        # 1. Metrados BIM ([BIM_TAKEOFF]) para Casa Mendoza / prototipo residencial (modo BIM)
         if "bim_takeoff" in act_txt or "takeoff" in act_txt:
-            if proy_id == "proto_residencial" and not es_solo_ppto:
+            if proy_id in ("casa_mendoza", "proto_residencial") and not es_solo_ppto:
                 indices_validos.append(idx)
             continue
 
@@ -50,7 +50,10 @@ def filtrar_bitacora_por_proyecto(df_bitacora, proyecto_actual):
             continue
 
         # 3. Proyectos base del sistema
-        if proy_id == "proto_residencial":
+        if proy_id == "casa_mendoza":
+            if "mendoza" in act_txt or "sabanalarga" in act_txt:
+                indices_validos.append(idx)
+        elif proy_id == "proto_residencial":
             if "proto_residencial" in act_txt or "prototipo bim" in act_txt:
                 indices_validos.append(idx)
         elif proy_id == "proto_corporativo":
@@ -87,8 +90,8 @@ def consolidar_presupuesto_y_ejecucion(df_ppto_base, df_bitacora, proyecto_id="p
         return best_item
 
     if df_bitacora is not None and not df_bitacora.empty and "actividad" in df_bitacora.columns and "cantidad" in df_bitacora.columns:
-        # 1. Sincronización de metrado BIM ([BIM_TAKEOFF]) para prototipo residencial BIM
-        if tipo_proyecto != "presupuesto" and proyecto_id == "proto_residencial":
+        # 1. Sincronización de metrado BIM ([BIM_TAKEOFF]) para Casa Mendoza / prototipo residencial BIM
+        if tipo_proyecto != "presupuesto" and proyecto_id in ("casa_mendoza", "proto_residencial"):
             for _, row in df_bitacora.iterrows():
                 act_txt = normalizar_texto(str(row.get("actividad", "")))
                 if "bim_takeoff" in act_txt or "takeoff" in act_txt:
