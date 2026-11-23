@@ -44,6 +44,7 @@ import {
 import { useAppPreferences } from "../lib/i18n";
 import { BITACORA_APP_URL } from "../lib/projects";
 import {
+  CASA_MENDOZA_ROOM_ORDER,
   RESIDENTIAL_PROTO_ROOM_ORDER,
   getInitialRoomItemsForProject,
   resolveUnitPriceForRoomItem,
@@ -259,12 +260,16 @@ export default function TabVisor3DBIM({
       entry.totalAiu += val;
       map.set(it.room, entry);
     }
+    const roomOrder =
+      proyecto.id === "casa_mendoza"
+        ? CASA_MENDOZA_ROOM_ORDER
+        : RESIDENTIAL_PROTO_ROOM_ORDER;
     return Array.from(map.values()).sort((a, b) => {
-      const ia = RESIDENTIAL_PROTO_ROOM_ORDER.indexOf(a.room);
-      const ib = RESIDENTIAL_PROTO_ROOM_ORDER.indexOf(b.room);
+      const ia = roomOrder.indexOf(a.room);
+      const ib = roomOrder.indexOf(b.room);
       return (ia >= 0 ? ia : 999) - (ib >= 0 ? ib : 999);
     });
-  }, [roomItems, proyecto.ppto_base, aiuFactor]);
+  }, [roomItems, proyecto.id, proyecto.ppto_base, aiuFactor]);
 
   const countByBudgetItem = useMemo(() => {
     const counts = new Map<string, number>();

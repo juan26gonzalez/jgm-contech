@@ -66,6 +66,18 @@ import {
 } from "../lib/types";
 
 const CUSTOM_OVERRIDES_KEY = "jgm_contech_project_overrides_v1";
+const ACTIVE_PROJECT_STORAGE_KEY = "jgm_contech_active_project_v1";
+
+function loadSavedActiveProjectId(): string {
+  if (typeof window === "undefined") return "casa_mendoza";
+  try {
+    const saved = window.localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY);
+    if (saved && saved !== DEMO_SHOWCASE_PROJECT_ID) return saved;
+  } catch {
+    // Ignorar error local
+  }
+  return "casa_mendoza";
+}
 
 function loadFullRealPortfolio(): Record<string, ProjectConfig> {
   if (typeof window === "undefined") return { ...PROYECTOS_BASE };
@@ -89,7 +101,7 @@ export default function GerenciaBim5DPage() {
   const [proyectos, setProyectos] = useState<Record<string, ProjectConfig>>(
     PROYECTOS_BASE
   );
-  const [proyectoActivoId, setProyectoActivoId] = useState<string>("proto_residencial");
+  const [proyectoActivoId, setProyectoActivoId] = useState<string>("casa_mendoza");
   const [activeTab, setActiveTab] = useState<TabKey>("panel");
   const [cloudRows, setCloudRows] = useState<BitacoraRow[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -110,17 +122,18 @@ export default function GerenciaBim5DPage() {
   const proyectoActual = useMemo(
     () =>
       proyectos[proyectoActivoId] ||
+      proyectos.casa_mendoza ||
       Object.values(proyectos)[0] ||
-      PROYECTOS_BASE.proto_residencial,
+      PROYECTOS_BASE.casa_mendoza,
     [proyectos, proyectoActivoId]
   );
 
   const [params, setParams] = useState<LiquidationParams>({
-    pct_a: PROYECTOS_BASE.proto_residencial.a_def,
-    pct_i: PROYECTOS_BASE.proto_residencial.i_def,
-    pct_u: PROYECTOS_BASE.proto_residencial.u_def,
-    pct_anticipo: PROYECTOS_BASE.proto_residencial.ant_def,
-    pct_garantia: PROYECTOS_BASE.proto_residencial.gar_def,
+    pct_a: PROYECTOS_BASE.casa_mendoza.a_def,
+    pct_i: PROYECTOS_BASE.casa_mendoza.i_def,
+    pct_u: PROYECTOS_BASE.casa_mendoza.u_def,
+    pct_anticipo: PROYECTOS_BASE.casa_mendoza.ant_def,
+    pct_garantia: PROYECTOS_BASE.casa_mendoza.gar_def,
   });
 
   // Synchronize portfolio isolation between Demo Sandbox and Real Authenticated Account
@@ -145,17 +158,23 @@ export default function GerenciaBim5DPage() {
     } else {
       const realPortfolio = loadFullRealPortfolio();
       setProyectos(realPortfolio);
+      const savedId = loadSavedActiveProjectId();
+      const targetProj =
+        realPortfolio[savedId] ||
+        realPortfolio.casa_mendoza ||
+        Object.values(realPortfolio)[0];
+      if (targetProj) {
+        setProyectoActivoId(targetProj.id);
+        setParams({
+          pct_a: targetProj.a_def ?? 8.0,
+          pct_i: targetProj.i_def ?? 2.0,
+          pct_u: targetProj.u_def ?? 5.0,
+          pct_anticipo: targetProj.ant_def ?? 15.0,
+          pct_garantia: targetProj.gar_def ?? 5.0,
+        });
+      }
       if (wasDemoRef.current) {
         wasDemoRef.current = false;
-        const p = realPortfolio.proto_residencial || Object.values(realPortfolio)[0];
-        setProyectoActivoId(p.id);
-        setParams({
-          pct_a: p.a_def ?? 8.0,
-          pct_i: p.i_def ?? 2.0,
-          pct_u: p.u_def ?? 5.0,
-          pct_anticipo: p.ant_def ?? 15.0,
-          pct_garantia: p.gar_def ?? 5.0,
-        });
         setActiveTab("panel");
       }
       setPythonData(null);
@@ -166,6 +185,13 @@ export default function GerenciaBim5DPage() {
   const handleSelectProyecto = useCallback(
     (id: string) => {
       setProyectoActivoId(id);
+      if (typeof window !== "undefined" && id !== DEMO_SHOWCASE_PROJECT_ID) {
+        try {
+          window.localStorage.setItem(ACTIVE_PROJECT_STORAGE_KEY, id);
+        } catch {
+          // Ignorar error local
+        }
+      }
       const p = proyectos[id];
       if (p) {
         setParams({
