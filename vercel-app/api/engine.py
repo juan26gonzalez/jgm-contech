@@ -22,6 +22,7 @@ from py_engine.calc_engine import (
 from py_engine.excel_generator import generar_acta_corte_excel, generar_plantilla_excel_presupuesto
 from py_engine.pdf_generator import (
     generar_contrato_cliente_pdf,
+    generar_presupuesto_insumos_pdf,
     generar_presupuesto_pdf,
     generar_subcontrato_oficial_pdf,
 )
@@ -144,6 +145,23 @@ class handler(BaseHTTPRequestHandler):
                     buf.getvalue(),
                     "application/pdf",
                     f"Presupuesto_{proy.get('id', 'proy')}.pdf",
+                )
+                return
+
+            if action == "presupuesto_insumos_pdf":
+                proy = data.get("proyecto_actual") or {}
+                buf = generar_presupuesto_insumos_pdf(
+                    data.get("insumos") or [],
+                    data.get("actividades") or [],
+                    proy,
+                    cfg=data.get("cfg") or {},
+                    doc_opts=doc_opts,
+                )
+                self._send_binary(
+                    200,
+                    buf.getvalue(),
+                    "application/pdf",
+                    f"Presupuesto_Insumos_{proy.get('id', 'proy')}.pdf",
                 )
                 return
 

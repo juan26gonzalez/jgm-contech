@@ -31,55 +31,55 @@ export const CASA_MENDOZA_ROOMS_BASE: RoomActivityItem[] = [
   // Habitación Mamá (12 m²)
   { id: "cm-hmom-plantilla", room: "Habitación Mamá", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H mom", unit: "m²", quantity: 12 },
   { id: "cm-hmom-enchape", room: "Habitación Mamá", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Mom", unit: "m²", quantity: 12 },
-  { id: "cm-hmom-cielorraso", room: "Habitación Mamá", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Mom", unit: "m²", quantity: 12 },
+  { id: "cm-hmom-cielorraso", room: "Habitación Mamá", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso H Mom", unit: "m²", quantity: 12 },
   { id: "cm-hmom-frescasa", room: "Habitación Mamá", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Mom", unit: "m²", quantity: 12 },
 
   // Habitación Esteban (8 m²)
   { id: "cm-hesteban-plantilla", room: "Habitación Esteban", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Esteban", unit: "m²", quantity: 8 },
   { id: "cm-hesteban-enchape", room: "Habitación Esteban", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Esteban", unit: "m²", quantity: 8 },
-  { id: "cm-hesteban-cielorraso", room: "Habitación Esteban", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Esteban", unit: "m²", quantity: 8 },
+  { id: "cm-hesteban-cielorraso", room: "Habitación Esteban", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso H Esteban", unit: "m²", quantity: 8 },
   { id: "cm-hesteban-frescasa", room: "Habitación Esteban", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Esteban", unit: "m²", quantity: 8 },
 
   // Habitación Nan & I (10 m²)
   { id: "cm-hnan-plantilla", room: "Habitación Nan & I", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Nan & I", unit: "m²", quantity: 10 },
   { id: "cm-hnan-enchape", room: "Habitación Nan & I", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Nan & I", unit: "m²", quantity: 10 },
-  { id: "cm-hnan-cielorraso", room: "Habitación Nan & I", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Nan & I", unit: "m²", quantity: 10 },
+  { id: "cm-hnan-cielorraso", room: "Habitación Nan & I", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso H Nan & I", unit: "m²", quantity: 10 },
   { id: "cm-hnan-frescasa", room: "Habitación Nan & I", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Nan & I", unit: "m²", quantity: 10 },
 
   // Habitación Abuelos (7 m²)
   { id: "cm-habuelos-plantilla", room: "Habitación Abuelos", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Abuelos", unit: "m²", quantity: 7 },
   { id: "cm-habuelos-enchape", room: "Habitación Abuelos", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Abuelos", unit: "m²", quantity: 7 },
-  { id: "cm-habuelos-cielorraso", room: "Habitación Abuelos", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Abuelos", unit: "m²", quantity: 7 },
+  { id: "cm-habuelos-cielorraso", room: "Habitación Abuelos", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso H Abuelos", unit: "m²", quantity: 7 },
   { id: "cm-habuelos-frescasa", room: "Habitación Abuelos", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Abuelos", unit: "m²", quantity: 7 },
 
   // Habitación Lisbeth (10 m²)
   { id: "cm-hlisbeth-plantilla", room: "Habitación Lisbeth", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Lisbeth", unit: "m²", quantity: 10 },
   { id: "cm-hlisbeth-enchape", room: "Habitación Lisbeth", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso H Lisbeth", unit: "m²", quantity: 10 },
-  { id: "cm-hlisbeth-cielorraso", room: "Habitación Lisbeth", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso H Lisbeth", unit: "m²", quantity: 10 },
+  { id: "cm-hlisbeth-cielorraso", room: "Habitación Lisbeth", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso H Lisbeth", unit: "m²", quantity: 10 },
   { id: "cm-hlisbeth-frescasa", room: "Habitación Lisbeth", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco H Lisbeth", unit: "m²", quantity: 10 },
 
   // Habitación Huésped (5 m²)
   { id: "cm-hhuesped-plantilla", room: "Habitación Huésped", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto H Huesped", unit: "m²", quantity: 5 },
   { id: "cm-hhuesped-enchape", room: "Habitación Huésped", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso Huesped", unit: "m²", quantity: 5 },
-  { id: "cm-hhuesped-cielorraso", room: "Habitación Huésped", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Huesped", unit: "m²", quantity: 5 },
+  { id: "cm-hhuesped-cielorraso", room: "Habitación Huésped", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso Huesped", unit: "m²", quantity: 5 },
   { id: "cm-hhuesped-frescasa", room: "Habitación Huésped", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Huesped", unit: "m²", quantity: 5 },
 
   // Sala (19 m²)
   { id: "cm-sala-plantilla", room: "Sala", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Sala", unit: "m²", quantity: 19 },
   { id: "cm-sala-enchape", room: "Sala", activityKey: "enchape", activityLabel: "Enchape piso porcelanato 51x51", sourceComment: "Enchape piso Sala", unit: "m²", quantity: 19 },
-  { id: "cm-sala-cielorraso", room: "Sala", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Sala", unit: "m²", quantity: 19 },
+  { id: "cm-sala-cielorraso", room: "Sala", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso Sala", unit: "m²", quantity: 19 },
   { id: "cm-sala-frescasa", room: "Sala", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Sala", unit: "m²", quantity: 19 },
 
   // Cocina (14 m²)
   { id: "cm-cocina-plantilla", room: "Cocina", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Cocina", unit: "m²", quantity: 14 },
   { id: "cm-cocina-enchape", room: "Cocina", activityKey: "enchape", activityLabel: "Enchape piso porcelanato cocina 51x51", sourceComment: "Enchape piso Cocina", unit: "m²", quantity: 14 },
-  { id: "cm-cocina-cielorraso", room: "Cocina", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Cocina", unit: "m²", quantity: 14 },
+  { id: "cm-cocina-cielorraso", room: "Cocina", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso Cocina", unit: "m²", quantity: 14 },
   { id: "cm-cocina-frescasa", room: "Cocina", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Cocina", unit: "m²", quantity: 14 },
 
   // Baño 1 (3 m²)
   { id: "cm-bano1-plantilla", room: "Baño 1", activityKey: "plantilla", activityLabel: "Plantilla de concreto 7cm", sourceComment: "Plantilla de concreto Baño 1", unit: "m²", quantity: 3 },
   { id: "cm-bano1-enchape", room: "Baño 1", activityKey: "enchape", activityLabel: "Enchape piso porcelanato baño 51x51", sourceComment: "Enchape piso Baño 1", unit: "m²", quantity: 3 },
-  { id: "cm-bano1-cielorraso", room: "Baño 1", activityKey: "cielorraso", activityLabel: "Cielo raso", sourceComment: "Cielo raso Baño 1", unit: "m²", quantity: 3 },
+  { id: "cm-bano1-cielorraso", room: "Baño 1", activityKey: "cielorraso", activityLabel: 'Cielo raso en Drywall 1/2"', sourceComment: "Cielo raso Baño 1", unit: "m²", quantity: 3 },
   { id: "cm-bano1-frescasa", room: "Baño 1", activityKey: "frescasa", activityLabel: 'Frescasa Eco 2-1/2" (sobre cielo raso)', sourceComment: "Frescasa Eco Baño 1", unit: "m²", quantity: 3 },
 
   // Entrada / Puerta 1 (13 m²)
@@ -877,16 +877,55 @@ export interface RoomMaterialSummary {
   insumo: string;
   unidad: string;
   cantidad: number;
+  cantidadCompra: number;
+  precioUnitRef: number;
+  categoria: string;
+}
+
+function roundPurchaseQty(qty: number, unidad: string): number {
+  if (qty <= 0) return 0;
+  const u = unidad.toLowerCase();
+  // Unidades indivisibles de ferretería: redondeo comercial al entero superior
+  if (
+    u.includes("lámina") ||
+    u.includes("lamina") ||
+    u.includes("rollo") ||
+    u.includes("saco") ||
+    u.includes("bulto") ||
+    u.includes("cuñete") ||
+    u.includes("cunete") ||
+    u.includes("gal") ||
+    u === "und"
+  ) {
+    return Math.ceil(qty);
+  }
+  if (u === "kg") return Math.ceil(qty);
+  if (u === "m²" || u === "ml") return Number((Math.ceil(qty * 2) / 2).toFixed(2));
+  if (u === "m³") return Number((Math.ceil(qty * 20) / 20).toFixed(2));
+  return Number(qty.toFixed(2));
 }
 
 export function computeMaterialsForRoomSelection(
   selectedItems: RoomActivityItem[]
 ): RoomMaterialSummary[] {
   const map = new Map<string, RoomMaterialSummary>();
-  const add = (insumo: string, unidad: string, qty: number) => {
+  const add = (
+    insumo: string,
+    unidad: string,
+    qty: number,
+    precioUnitRef: number,
+    categoria: string
+  ) => {
     if (qty <= 0) return;
     const key = `${insumo}||${unidad}`;
-    const prev = map.get(key) || { insumo, unidad, cantidad: 0 };
+    const prev = map.get(key) || {
+      insumo,
+      unidad,
+      cantidad: 0,
+      cantidadCompra: 0,
+      precioUnitRef,
+      categoria,
+    };
     prev.cantidad += qty;
     map.set(key, prev);
   };
@@ -896,53 +935,80 @@ export function computeMaterialsForRoomSelection(
     if (q <= 0) continue;
     switch (item.activityKey) {
       case "plantilla":
-        add("Concreto Simple f'c=14 MPa (Plantilla e=7cm)", "m³", q * 0.07);
-        add("Cemento Gris para Plantilla (Sacos 50kg)", "Sacos", q * 0.45);
+        add("Cemento Gris Tipo UG para Plantilla e=7cm (Sacos 50 kg)", "Sacos", q * 0.45, 32000, "Obra Gris / Plantilla");
+        add("Arena Lavada de Río para Plantilla (0.07 m³/m²)", "m³", q * 0.042, 85000, "Obra Gris / Plantilla");
+        add('Gravilla / Triturado 3/4" para Plantilla', "m³", q * 0.056, 95000, "Obra Gris / Plantilla");
         break;
       case "enchape":
-        add("Porcelanato / Cerámica 51x51 cm (inc. 5% desp.)", "m²", q * 1.05);
-        add("Pegacor Cerámico (Bultos 25kg)", "Bultos", q * 0.25);
-        add("Boquilla para Junta", "kg", q * 0.35);
+        add("Porcelanato / Cerámica 51×51 cm (inc. 5% desp.)", "m²", q * 1.05, 34000, "Pisos y Enchapes");
+        add("Pegacor Cerámico / Porcelanato (Bultos 25 kg)", "Bultos", q * 0.25, 28000, "Pisos y Enchapes");
+        add("Boquilla para Junta de Piso", "kg", q * 0.35, 7500, "Pisos y Enchapes");
         break;
       case "enchape_pared":
-        add("Cerámica / Porcelanato de Pared (inc. 8% desp. cortes)", "m²", q * 1.08);
-        add("Pegacor Blanco / Cerámico Pared (Bultos 25kg)", "Bultos", q * 0.25);
-        add("Boquilla Antimoho para Muro", "kg", q * 0.35);
+        add("Cerámica / Porcelanato de Pared (inc. 8% desp. cortes)", "m²", q * 1.08, 36000, "Pisos y Enchapes");
+        add("Pegacor Blanco / Cerámico Pared (Bultos 25 kg)", "Bultos", q * 0.25, 31000, "Pisos y Enchapes");
+        add("Boquilla Antimoho para Muro", "kg", q * 0.35, 8500, "Pisos y Enchapes");
         break;
       case "cielorraso":
-        add("Panel de Cielorraso Suspendido (inc. 5% desp.)", "m²", q * 1.05);
-        add("Perfilería Angular y Perfiles Omega", "ml", q * 1.8);
+        add('Lámina de Drywall 1/2" Standard (1.22×2.44 m = 2.98 m², inc. 5% desp.)', "Láminas", (q * 1.05) / 2.9768, 34500, "Cielo Raso Drywall");
+        add("Perfilería Metálica Drywall (Ángulo Perimetral y Perfil Omega)", "ml", q * 1.8, 4500, "Cielo Raso Drywall");
+        add('Tornillo para Drywall 6×1" Punta Fina (fijación lámina a perfil)', "Und", q * 15, 45, "Cielo Raso Drywall");
+        add('Tornillo de Estructura 7×7/16" Cabeza Lenteja (perfil a perfil)', "Und", q * 8, 55, "Cielo Raso Drywall");
+        add("Tiros de Fijación (Fulminante Cal. .22 + Clavo c/ Arandela)", "Und", q * 4, 450, "Cielo Raso Drywall");
+        add("Masilla Lista para Drywall (Juntas y Acabado)", "kg", q * 0.9, 4200, "Cielo Raso Drywall");
+        add("Cinta de Papel / Malla para Juntas Drywall", "ml", q * 1.5, 450, "Cielo Raso Drywall");
         break;
       case "frescasa":
-        add("Rollo Frescasa Eco 2-1/2\" (7.62×1.22m = 9.30 m², inc. 5% desp.)", "Rollos", (q * 1.05) / 9.2964);
-        add("Aislamiento Fibra de Vidrio Frescasa Eco (Área c/ 5% desp.)", "m²", q * 1.05);
+        add('Rollo Frescasa Eco 2-1/2" (7.62×1.22 m = 9.30 m², inc. 5% desp.)', "Rollos", (q * 1.05) / 9.2964, 112900, "Aislamiento Térmico");
         break;
       case "mamposteria":
-        add("Bloque de Concreto No. 12 (40x20x12)", "Und", q * 12.5);
-        add("Cemento Gris para Pega (Sacos 50kg)", "Sacos", q * 12.5 * 0.015);
-        add("Arena Fina para Mortero de Pega", "m³", q * 12.5 * 0.002);
+        add("Bloque de Concreto No. 12 (40×20×12 cm)", "Und", q * 12.5, 2400, "Mampostería y Pañete");
+        add("Cemento Gris para Pega (Sacos 50 kg)", "Sacos", q * 12.5 * 0.015, 32000, "Mampostería y Pañete");
+        add("Arena Fina para Mortero de Pega", "m³", q * 12.5 * 0.002, 85000, "Mampostería y Pañete");
         break;
       case "panete":
-        add("Cemento Gris para Pañete (Sacos 50kg)", "Sacos", q * 0.22);
-        add("Arena Lavada para Pañete", "m³", q * 0.028);
+        add("Cemento Gris para Pañete (Sacos 50 kg)", "Sacos", q * 0.22, 32000, "Mampostería y Pañete");
+        add("Arena Lavada para Pañete", "m³", q * 0.028, 85000, "Mampostería y Pañete");
         break;
       case "pintura":
-        add("Estuco Plástico Listo (Cuñetes)", "Cuñetes", q * 0.08);
-        add("Pintura Vinilo Tipo 1 (Galones)", "Gal", q * 0.12);
+        add("Estuco Plástico Listo (Cuñetes)", "Cuñetes", q * 0.08, 78000, "Pintura y Acabados");
+        add("Pintura Vinilo Tipo 1 (Galones)", "Gal", q * 0.12, 62000, "Pintura y Acabados");
         break;
       case "cubierta":
-        add("Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", "m³", q * 0.12);
-        add("Mortero Afine Impermeabilizado Pendiente 1% (1:3)", "m³", q * 0.055);
-        add("Membrana Elastomérica Impermeabilizante Cubierta", "m²", q * 1.1);
+        add("Concreto Premezclado f'c=24 MPa (Losa L-2 e=12cm)", "m³", q * 0.12, 460000, "Cubierta");
+        add("Mortero Afine Impermeabilizado Pendiente 1% (1:3)", "m³", q * 0.055, 340000, "Cubierta");
+        add("Membrana Elastomérica Impermeabilizante Cubierta", "m²", q * 1.1, 28000, "Cubierta");
         break;
       default:
         break;
     }
   }
 
+  const catOrder = [
+    "Obra Gris / Plantilla",
+    "Pisos y Enchapes",
+    "Cielo Raso Drywall",
+    "Aislamiento Térmico",
+    "Mampostería y Pañete",
+    "Pintura y Acabados",
+    "Cubierta",
+  ];
+
   return Array.from(map.values())
-    .map((m) => ({ ...m, cantidad: Number(m.cantidad.toFixed(2)) }))
-    .sort((a, b) => b.cantidad - a.cantidad);
+    .map((m) => {
+      const cantidad = Number(m.cantidad.toFixed(2));
+      return {
+        ...m,
+        cantidad,
+        cantidadCompra: roundPurchaseQty(cantidad, m.unidad),
+      };
+    })
+    .sort((a, b) => {
+      const ca = catOrder.indexOf(a.categoria);
+      const cb = catOrder.indexOf(b.categoria);
+      if (ca !== cb) return (ca === -1 ? 99 : ca) - (cb === -1 ? 99 : cb);
+      return b.cantidadCompra * b.precioUnitRef - a.cantidadCompra * a.precioUnitRef;
+    });
 }
 
 export function getInitialRoomItemsForProject(proyecto: ProjectConfig): RoomActivityItem[] {

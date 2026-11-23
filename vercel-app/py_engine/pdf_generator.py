@@ -1352,3 +1352,593 @@ def generar_subcontrato_oficial_pdf(df_items_sub_in, proyecto_actual, cfg, doc_o
     doc.build(story, canvasmaker=canvas_maker)
     buffer.seek(0)
     return buffer
+
+
+def generar_presupuesto_insumos_pdf(
+    insumos_rows,
+    actividades_rows,
+    proyecto_actual,
+    cfg=None,
+    doc_opts=None,
+):
+    """Genera un PDF formal tipo Presupuesto de Insumos y Materiales de Obra (Ferretería / Compras) con ReportLab."""
+    ctx = _parse_doc_opts(doc_opts, proyecto_actual)
+    is_en = ctx["is_en"]
+    curr = ctx["currency"]
+    unit_sys = ctx["unit_system"]
+    is_demo = ctx["is_demo"]
+    cfg = cfg or {}
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=32,
+        bottomMargin=42,
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        "InsDocTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=12.5 if is_en else 13.0,
+        leading=16,
+        textColor=colors.HexColor("#0f172a"),
+    )
+    subtitle_style = ParagraphStyle(
+        "InsDocSub",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#2563eb"),
+    )
+    sec_heading = ParagraphStyle(
+        "InsSecHead",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#1e3a8a"),
+    )
+    cell_txt = ParagraphStyle(
+        "InsCellTxt",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.2,
+        leading=9.2,
+        textColor=colors.HexColor("#1e293b"),
+    )
+    cell_bold = ParagraphStyle(
+        "InsCellBold",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.2,
+        leading=9.2,
+        textColor=colors.HexColor("#0f172a"),
+    )
+    cell_center = ParagraphStyle(
+        "InsCellCenter",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.2,
+        leading=9.2,
+        alignment=1,
+        textColor=colors.HexColor("#1e293b"),
+    )
+    cell_right = ParagraphStyle(
+        "InsCellRight",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=7.2,
+        leading=9.2,
+        alignment=2,
+        textColor=colors.HexColor("#0f172a"),
+    )
+    cell_rbold = ParagraphStyle(
+        "InsCellRBold",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.2,
+        leading=9.2,
+        alignment=2,
+        textColor=colors.HexColor("#0f172a"),
+    )
+    cell_white = ParagraphStyle(
+        "InsCellWhite",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.2,
+        leading=9.2,
+        textColor=colors.white,
+    )
+    cell_white_c = ParagraphStyle(
+        "InsCellWhiteC",
+        parent=cell_white,
+        alignment=1,
+    )
+    cell_white_r = ParagraphStyle(
+        "InsCellWhiteR",
+        parent=cell_white,
+        alignment=2,
+    )
+    cat_style = ParagraphStyle(
+        "InsCatRow",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=7.4,
+        leading=9.5,
+        textColor=colors.HexColor("#1e3a8a"),
+    )
+
+    story = []
+    fecha_str = datetime.now().strftime("%Y-%m-%d" if is_en else "%d/%m/%Y")
+    proy_nombre = (proyecto_actual or {}).get(
+        "nombre", "Construction Project" if is_en else "Proyecto de Construcción"
+    )
+    ubicacion = _resolver_ubicacion_obra(proyecto_actual)
+    unit_badge = (
+        "Imperial (ft², yd³, ft, lb)"
+        if unit_sys == "imperial"
+        else ("Metric SI (m², m³, ml, kg)" if is_en else "Métrico SI (m², m³, ml, kg)")
+    )
+    zonas_label = str(
+        cfg.get("zonas_resumen")
+        or ("Full Project Scope" if is_en else "Alcance General del Proyecto")
+    ).strip()
+    titulo_doc = str(
+        cfg.get("titulo_doc")
+        or (
+            "MATERIAL TAKEOFF & PROCUREMENT BUDGET"
+            if is_en
+            else "PRESUPUESTO FORMAL DE INSUMOS Y MATERIALES"
+        )
+    )
+    doc_code = f"INS-{str((proyecto_actual or {}).get('id', 'PROY')).upper()[:12]}"
+
+    # 1. Encabezado Corporativo
+    header_data = [
+        [
+            Paragraph("<b>JGM ConTech • BIM 5D & Project Controls</b>", subtitle_style),
+            Paragraph(
+                f"<b>{'ISSUE DATE' if is_en else 'FECHA DE EMISIÓN'}:</b> {fecha_str} • {curr}",
+                ParagraphStyle("InsHeadR", parent=cell_right, fontSize=7.2),
+            ),
+        ],
+        [
+            Paragraph(_esc_xml(titulo_doc), title_style),
+            Paragraph(
+                f"<b>{'CODE' if is_en else 'CÓDIGO'}:</b> {_esc_xml(doc_code)}",
+                ParagraphStyle(
+                    "InsHeadR2",
+                    parent=cell_right,
+                    fontSize=8,
+                    textColor=colors.HexColor("#1e3a8a"),
+                ),
+            ),
+        ],
+        [
+            Paragraph(
+                f"<b>{'Project' if is_en else 'Proyecto'}:</b> {_esc_xml(proy_nombre)} • {_esc_xml(ubicacion)}",
+                cell_txt,
+            ),
+            Paragraph(
+                f"<b>{'Units' if is_en else 'Sistema'}:</b> {unit_badge}",
+                cell_right,
+            ),
+        ],
+    ]
+    header_table = Table(header_data, colWidths=[355, 185])
+    header_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+                ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]
+        )
+    )
+    story.extend(
+        [
+            header_table,
+            Spacer(1, 2),
+            HRFlowable(
+                width="100%",
+                thickness=1.6,
+                color=colors.HexColor("#2563eb"),
+                spaceAfter=6,
+                spaceBefore=2,
+            ),
+        ]
+    )
+
+    # 2. Ficha de Cliente, Dirección Técnica y Alcance
+    actores = _resolver_actores_proyecto(proyecto_actual, ctx)
+    txt_cli = f"<b>{_esc_xml(actores['contratante_nom'])}</b>"
+    if actores["cedula_cliente"]:
+        txt_cli += f"<br/><font color='#64748b'>ID / NIT: {_esc_xml(actores['cedula_cliente'])}</font>"
+    txt_cli += (
+        f"<br/><font color='#0f766e'><b>{'Scope / Zones' if is_en else 'Zonas / Habitaciones'}:</b> "
+        f"{_esc_xml(zonas_label)}</font>"
+    )
+
+    txt_eng = f"<b>{_esc_xml(actores['contratista_nom'])}</b>"
+    if actores["cargo_contratista"]:
+        txt_eng += f"<br/><font color='#2563eb'><b>{_esc_xml(actores['cargo_contratista'])}</b></font>"
+    n_acts = len(actividades_rows or [])
+    n_ins = len(insumos_rows or [])
+    txt_eng += (
+        f"<br/><font color='#475569'>{'Line items' if is_en else 'Resumen'}: "
+        f"{n_acts} {'activities' if is_en else 'partidas'} • {n_ins} {'materials' if is_en else 'insumos'}</font>"
+    )
+
+    info_tbl = Table(
+        [
+            [
+                Paragraph(
+                    f"<b>{'CLIENT & PHASE SCOPE' if is_en else 'CLIENTE Y ALCANCE DE FASE'}</b>",
+                    ParagraphStyle("ILH", parent=cell_bold, textColor=colors.HexColor("#475569"), fontSize=6.8),
+                ),
+                Paragraph(
+                    f"<b>{'TECHNICAL DIRECTION / PREPARED BY' if is_en else 'DIRECCIÓN TÉCNICA / ELABORÓ'}</b>",
+                    ParagraphStyle("IRH", parent=cell_bold, textColor=colors.HexColor("#475569"), fontSize=6.8),
+                ),
+            ],
+            [Paragraph(txt_cli, cell_txt), Paragraph(txt_eng, cell_txt)],
+        ],
+        colWidths=[270, 270],
+    )
+    info_tbl.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#cbd5e1")),
+                ("LINEBEFORE", (1, 0), (1, -1), 0.5, colors.HexColor("#e2e8f0")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    story.extend([info_tbl, Spacer(1, 7)])
+
+    # 3. Sección 1 — Actividades Seleccionadas (si aplica)
+    acts_list = list(actividades_rows or [])
+    incluir_aiu = bool(cfg.get("incluir_aiu", False))
+    pct_aiu = float(cfg.get("pct_aiu", 0.0) or 0.0)
+    total_directo_acts = 0.0
+
+    if acts_list:
+        story.append(
+            Paragraph(
+                "1. SELECTED WORK ACTIVITIES & EXECUTION BUDGET (SUPPLY + LABOR)"
+                if is_en
+                else "1. ALCANCE DE ACTIVIDADES SELECCIONADAS (SUMINISTRO + MANO DE OBRA)",
+                sec_heading,
+            )
+        )
+        story.append(Spacer(1, 4))
+
+        act_rows = [
+            [
+                Paragraph("Zone / Room" if is_en else "Habitación / Zona", cell_white),
+                Paragraph("Activity (BIM / Revit)" if is_en else "Actividad (Revit BIM)", cell_white),
+                Paragraph("Unit" if is_en else "Und.", cell_white_c),
+                Paragraph("Qty." if is_en else "Cant.", cell_white_r),
+                Paragraph(f"{'Unit Rate' if is_en else 'P. Unit.'} ({curr})", cell_white_r),
+                Paragraph(f"Subtotal ({curr})", cell_white_r),
+            ]
+        ]
+
+        for a in acts_list:
+            q_val = float(a.get("cantidad", 0.0) or 0.0)
+            pu_val = float(a.get("precio_unitario", 0.0) or 0.0)
+            sub_val = float(a.get("subtotal", q_val * pu_val) or 0.0)
+            total_directo_acts += sub_val
+            act_rows.append(
+                [
+                    Paragraph(_esc_xml(a.get("habitacion", "")), cell_bold),
+                    Paragraph(_esc_xml(a.get("actividad", "")), cell_txt),
+                    Paragraph(_esc_xml(a.get("unidad", "m²")), cell_center),
+                    Paragraph(f"{q_val:,.2f}", cell_right),
+                    Paragraph(_fmt_money(pu_val, curr), cell_right),
+                    Paragraph(_fmt_money(sub_val, curr), cell_rbold),
+                ]
+            )
+
+        act_rows.append(
+            [
+                Paragraph(
+                    f"<b>{'DIRECT COST SUBTOTAL (ACTIVITIES)' if is_en else 'SUBTOTAL COSTO DIRECTO ACTIVIDADES (SUMINISTRO + M.O.)'}</b>",
+                    cell_bold,
+                ),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph(_fmt_money(total_directo_acts, curr), cell_rbold),
+            ]
+        )
+
+        val_aiu = total_directo_acts * (pct_aiu / 100.0) if incluir_aiu and pct_aiu > 0 else 0.0
+        total_exec = total_directo_acts + val_aiu
+
+        if val_aiu > 0:
+            act_rows.append(
+                [
+                    Paragraph(
+                        f"(+) {'Indirects / AIU' if is_en else 'A.I.U. (Administración, Imprevistos y Utilidad)'} ({pct_aiu:.1f}%)",
+                        cell_txt,
+                    ),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph(_fmt_money(val_aiu, curr), cell_right),
+                ]
+            )
+            act_rows.append(
+                [
+                    Paragraph(
+                        f"<b>{'TOTAL ESTIMATED EXECUTION (WITH AIU)' if is_en else 'TOTAL ESTIMADO DE EJECUCIÓN (CON AIU)'}</b>",
+                        ParagraphStyle("ActTotL", parent=cell_bold, textColor=colors.HexColor("#1e3a8a")),
+                    ),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph(
+                        f"<b>{_fmt_money(total_exec, curr, include_code=True)}</b>",
+                        ParagraphStyle("ActTotR", parent=cell_rbold, textColor=colors.HexColor("#1e3a8a")),
+                    ),
+                ]
+            )
+
+        t_acts = Table(act_rows, colWidths=[112, 198, 36, 50, 68, 76], repeatRows=1)
+        act_style = [
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, len(acts_list)), [colors.white, colors.HexColor("#f8fafc")]),
+            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#cbd5e1")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
+            ("TOPPADDING", (0, 0), (-1, -1), 3.2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3.2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4.5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4.5),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("SPAN", (0, len(acts_list) + 1), (4, len(acts_list) + 1)),
+            ("BACKGROUND", (0, len(acts_list) + 1), (-1, len(acts_list) + 1), colors.HexColor("#f1f5f9")),
+        ]
+        if val_aiu > 0:
+            act_style.extend(
+                [
+                    ("SPAN", (0, len(acts_list) + 2), (4, len(acts_list) + 2)),
+                    ("SPAN", (0, len(acts_list) + 3), (4, len(acts_list) + 3)),
+                    ("BACKGROUND", (0, len(acts_list) + 3), (-1, len(acts_list) + 3), colors.HexColor("#dbeafe")),
+                ]
+            )
+        t_acts.setStyle(TableStyle(act_style))
+        story.extend([t_acts, Spacer(1, 8)])
+
+    # 4. Sección 2 — Presupuesto Formal de Insumos / Materiales (Lista de Ferretería)
+    sec2_num = "2." if acts_list else "1."
+    story.append(
+        Paragraph(
+            f"{sec2_num} {'MATERIAL PROCUREMENT SCHEDULE & ESTIMATED HARDWARE BUDGET' if is_en else 'PRESUPUESTO DETALLADO DE INSUMOS Y MATERIALES (ORDEN DE COMPRA FERRETERÍA)'}",
+            sec_heading,
+        )
+    )
+    story.append(Spacer(1, 4))
+
+    ins_list = list(insumos_rows or [])
+    ins_table_rows = [
+        [
+            Paragraph("#", cell_white_c),
+            Paragraph("Material / Technical Specification" if is_en else "Insumo / Especificación Técnica", cell_white),
+            Paragraph("Unit" if is_en else "Und.", cell_white_c),
+            Paragraph("Exact Qty" if is_en else "Cant. Exacta", cell_white_r),
+            Paragraph("Buy Qty" if is_en else "Cant. Compra", cell_white_r),
+            Paragraph(f"{'Ref. Unit' if is_en else 'P. Unit. Ref.'}", cell_white_r),
+            Paragraph(f"{'Ref. Subtotal' if is_en else 'Subtotal Ref.'}", cell_white_r),
+        ]
+    ]
+
+    t_ins_style = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+        ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#cbd5e1")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4.5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4.5),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+
+    total_insumos = 0.0
+    has_any_price = False
+    last_cat = None
+    idx_counter = 0
+
+    for item in ins_list:
+        cat_name = str(item.get("categoria", "") or "").strip()
+        if cat_name and cat_name != last_cat:
+            row_idx = len(ins_table_rows)
+            ins_table_rows.append(
+                [
+                    Paragraph(f"<b>{_esc_xml(cat_name.upper())}</b>", cat_style),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                    Paragraph("", cell_txt),
+                ]
+            )
+            t_ins_style.extend(
+                [
+                    ("SPAN", (0, row_idx), (-1, row_idx)),
+                    ("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#eff6ff")),
+                    ("TOPPADDING", (0, row_idx), (-1, row_idx), 3.5),
+                    ("BOTTOMPADDING", (0, row_idx), (-1, row_idx), 3.5),
+                ]
+            )
+            last_cat = cat_name
+
+        idx_counter += 1
+        q_exact = float(item.get("cantidad", 0.0) or 0.0)
+        q_buy = float(item.get("cantidad_compra", q_exact) or 0.0)
+        pu_ref = float(item.get("precio_unitario", 0.0) or 0.0)
+        sub_ref = float(item.get("subtotal", q_buy * pu_ref) or 0.0)
+        if pu_ref > 0:
+            has_any_price = True
+            total_insumos += sub_ref
+
+        q_buy_str = f"{int(q_buy):,}" if abs(q_buy - round(q_buy)) < 1e-6 else f"{q_buy:,.2f}"
+        row_idx = len(ins_table_rows)
+        ins_table_rows.append(
+            [
+                Paragraph(str(idx_counter), cell_center),
+                Paragraph(_esc_xml(item.get("insumo", "")), cell_bold),
+                Paragraph(_esc_xml(item.get("unidad", "Und")), cell_center),
+                Paragraph(f"{q_exact:,.2f}", cell_right),
+                Paragraph(f"<b>{q_buy_str}</b>", cell_rbold),
+                Paragraph(
+                    _fmt_money(pu_ref, curr) if pu_ref > 0 else ("Quote" if is_en else "Cotizar"),
+                    cell_right,
+                ),
+                Paragraph(
+                    _fmt_money(sub_ref, curr) if pu_ref > 0 else "—",
+                    cell_rbold,
+                ),
+            ]
+        )
+        if idx_counter % 2 == 0:
+            t_ins_style.append(("BACKGROUND", (0, row_idx), (-1, row_idx), colors.HexColor("#f8fafc")))
+
+    if has_any_price:
+        tot_idx = len(ins_table_rows)
+        ins_table_rows.append(
+            [
+                Paragraph(
+                    f"<b>{'TOTAL ESTIMATED MATERIAL PURCHASE BUDGET (HARDWARE STORE)' if is_en else 'TOTAL PRESUPUESTO ESTIMADO DE INSUMOS (COMPRA EN FERRETERÍA)'}</b>",
+                    ParagraphStyle("InsTotL", parent=cell_bold, textColor=colors.white),
+                ),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph("", cell_txt),
+                Paragraph(
+                    f"<b>{_fmt_money(total_insumos, curr, include_code=True)}</b>",
+                    ParagraphStyle("InsTotR", parent=cell_rbold, textColor=colors.HexColor("#6ee7b7")),
+                ),
+            ]
+        )
+        t_ins_style.extend(
+            [
+                ("SPAN", (0, tot_idx), (5, tot_idx)),
+                ("BACKGROUND", (0, tot_idx), (-1, tot_idx), colors.HexColor("#0f172a")),
+                ("TOPPADDING", (0, tot_idx), (-1, tot_idx), 5),
+                ("BOTTOMPADDING", (0, tot_idx), (-1, tot_idx), 5),
+            ]
+        )
+
+    t_ins = Table(ins_table_rows, colWidths=[22, 222, 44, 54, 60, 66, 72], repeatRows=1)
+    t_ins.setStyle(TableStyle(t_ins_style))
+    story.extend([t_ins, Spacer(1, 7)])
+
+    # 5. Notas Técnicas y Dosificaciones Aplicadas
+    note_style = ParagraphStyle(
+        "InsNotes",
+        parent=cell_txt,
+        fontSize=7.1,
+        leading=9.8,
+        alignment=4,
+        textColor=colors.HexColor("#1e293b"),
+    )
+    if is_en:
+        notes_html = (
+            "<b>Technical Takeoff & Procurement Notes:</b><br/>"
+            "• <b>Waste & Commercial Rounding:</b> Theoretical quantities include standard field waste (+5% on 1/2\" Drywall boards, porcelain tile, and Frescasa Eco insulation; +8% on wall tile cuts). "
+            "<i>Buy Qty</i> rounds discrete SKUs (sheets, rolls, bags, buckets, units) up to commercial hardware packaging.<br/>"
+            "• <b>Drywall Ceiling Fasteners:</b> Sized at 15 #6×1\" drywall screws/m², 8 #7×7/16\" framing screws/m², and 4 powder-actuated fastener shots (.22 cal. + washer pin)/m².<br/>"
+            "• <b>Reference Market Pricing:</b> Material unit prices are market reference estimates and exclude freight/unloading. Final supplier invoice governs upon purchase. Valid for 15 calendar days."
+        )
+    else:
+        notes_html = (
+            "<b>Notas Técnicas, Dosificación y Condiciones de Compra:</b><br/>"
+            "• <b>Desperdicio y Redondeo Comercial:</b> Las cantidades exactas incluyen desperdicio técnico estándar (+5% en lámina Drywall 1/2\", porcelanato y Frescasa Eco; +8% en cortes de enchape de muro). "
+            "La columna <b>Cant. Compra</b> redondea hacia arriba las presentaciones comerciales enteras (láminas, rollos, sacos, bultos, cuñetes y unidades) para pedido directo en ferretería.<br/>"
+            "• <b>Especificación Cielo Raso Drywall y Tornillería:</b> Dosificación por m²: lámina Drywall 1/2\" (1.22×2.44 m = 2.98 m²), perfilería angular/omega (1.80 ml/m²), "
+            "tornillo Drywall 6×1\" punta fina (15 und/m²), tornillo estructura 7×7/16\" cabeza lenteja (8 und/m²), tiros de fijación cal. .22 + clavo con arandela (4 und/m²), masilla (0.90 kg/m²) y cinta para juntas (1.50 ml/m²).<br/>"
+            "• <b>Precios de Referencia:</b> Los precios unitarios de insumos son referencias de mercado ferretero colombiano (no incluyen transporte/flete) y están sujetos a cotización definitiva del proveedor. Vigencia sugerida: 15 días calendario."
+        )
+
+    nota_box = Table([[Paragraph(notes_html, note_style)]], colWidths=[540])
+    nota_box.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#eff6ff")),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#93c5fd")),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    story.append(nota_box)
+
+    # 6. Bloque de Firmas / Aprobación
+    firma_flow = _obtener_firma_contratista_flowable(150, 26, is_demo=is_demo)
+    sig_left = (
+        f"____________________________________________<br/>"
+        f"<b>{'PREPARED BY / TECHNICAL DIRECTION' if is_en else 'ELABORÓ / DIRECCIÓN TÉCNICA'}</b><br/>"
+        f"<b>{_esc_xml(actores['contratista_nom'].upper())}</b><br/>"
+        f"{_esc_xml(actores['cargo_contratista'])}"
+    )
+    sig_right = (
+        f"____________________________________________<br/>"
+        f"<b>{'PURCHASE APPROVAL / CLIENT' if is_en else 'APROBACIÓN DE COMPRA / CLIENTE'}</b><br/>"
+        f"<b>{_esc_xml(actores['contratante_nom'].upper())}</b><br/>"
+        f"{_esc_xml(zonas_label)}"
+    )
+    t_sig = Table(
+        [
+            [firma_flow, Spacer(1, 26)],
+            [
+                Paragraph(sig_left, ParagraphStyle("InsSigL", parent=cell_txt, alignment=1, leading=9.5)),
+                Paragraph(sig_right, ParagraphStyle("InsSigR", parent=cell_txt, alignment=1, leading=9.5)),
+            ],
+        ],
+        colWidths=[270, 270],
+    )
+    t_sig.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]
+        )
+    )
+    story.append(KeepTogether([Spacer(1, 6), t_sig]))
+
+    canvas_maker = lambda *args, **kwargs: PresupuestoCanvas(
+        *args,
+        doc_title=f"{'Material Budget' if is_en else 'Presupuesto de Insumos'} - {proy_nombre}",
+        doc_badge="MATERIAL PROCUREMENT BUDGET" if is_en else "PRESUPUESTO FORMAL DE INSUMOS",
+        footer_txt=f"JGM ConTech • {'Formal Material Takeoff & Procurement Budget' if is_en else 'Presupuesto Formal de Insumos y Materiales BIM 5D'} ({curr} • {unit_badge})",
+        doc_lang=ctx["lang"],
+        **kwargs,
+    )
+    doc.build(story, canvasmaker=canvas_maker)
+    buffer.seek(0)
+    return buffer

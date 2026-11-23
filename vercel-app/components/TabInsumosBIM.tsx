@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
-import { Boxes, Building2, HardHat, Package } from "lucide-react";
+import { Boxes, Building2, FileDown, HardHat, Loader2, Package } from "lucide-react";
+import { downloadPythonBinary } from "../lib/calcClient";
 import { useAppPreferences } from "../lib/i18n";
 import { ConsolidationResult, ProjectConfig } from "../lib/types";
-import { localizeMaterialName } from "../lib/units";
+import {
+  convertQty,
+  localizeMaterialName,
+  sanitizeDemoProject,
+} from "../lib/units";
 
 interface TabInsumosBIMProps {
   proyecto: ProjectConfig;
@@ -12,9 +17,11 @@ interface TabInsumosBIMProps {
 }
 
 export default function TabInsumosBIM({ proyecto, data }: TabInsumosBIMProps) {
-  const { lang, unitLabel, formatQty } = useAppPreferences();
+  const { lang, currency, docOpts, unitLabel, formatQty } = useAppPreferences();
   const isEn = lang === "en";
   const [modo, setModo] = useState<"demanda" | "ejecutado">("demanda");
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [pdfErr, setPdfErr] = useState<string | null>(null);
   const rawList =
     modo === "demanda" ? data.insumos_demanda : data.insumos_ejecutado;
 
@@ -28,6 +35,70 @@ export default function TabInsumosBIM({ proyecto, data }: TabInsumosBIMProps) {
     }
     return Array.from(map.values()).sort((a, b) => b.Total - a.Total);
   }, [rawList]);
+
+  const handleExportPdf = async () => {
+    if (grouped.length === 0) return;
+    setExportingPdf(true);
+    setPdfErr(null);
+    try {
+      const effectiveDemo = proyecto.id === "demo_showcase";
+      const cleanProj = sanitizeDemoProject(proyecto, effectiveDemo, lang);
+      const insumosPayload = grouped.map((g) => {
+        const dispQty = convertQty(g.Total, g.Unidad, lang);
+        const uLow = g.Unidad.toLowerCase();
+        const isDiscrete =
+          uLow.includes("lámina") ||
+          uLow.includes("lamina") ||
+          uLow.includes("rollo") ||
+          uLow.includes("saco") ||
+          uLow.includes("bulto") ||
+          uLow.includes("cuñete") ||
+          uLow.includes("gal") ||
+          uLow === "und";
+        const buyQty = isDiscrete ? Math.ceil(dispQty) : Number(dispQty.toFixed(2));
+        return {
+          categoria: isEn ? "CONSOLIDATED PROJECT TAKEOFF" : "CONSOLIDADO GENERAL DE OBRA",
+          insumo: localizeMaterialName(g.Insumo, lang),
+          unidad: unitLabel(g.Unidad),
+          cantidad: Number(dispQty.toFixed(2)),
+          cantidad_compra: buyQty,
+          precio_unitario: 0,
+          subtotal: 0,
+        };
+      });
+      const scopeLabel =
+        modo === "demanda"
+          ? isEn
+            ? "Total Project Demand (Full Scope)"
+            : "Demanda Total de Obra (Alcance Completo)"
+          : isEn
+          ? "Theoretical Executed Consumption"
+          : "Consumo Teórico Ejecutado a la Fecha";
+
+      await downloadPythonBinary(
+        {
+          action: "presupuesto_insumos_pdf",
+          insumos: insumosPayload,
+          actividades: [],
+          proyecto_actual: cleanProj,
+          cfg: {
+            zonas_resumen: scopeLabel,
+          },
+          doc_opts: {
+            ...docOpts,
+            is_demo: effectiveDemo,
+          },
+        },
+        isEn
+          ? `Material_Takeoff_${proyecto.id}_${modo}_${currency}.pdf`
+          : `Presupuesto_Insumos_${proyecto.id}_${modo}_${currency}.pdf`
+      );
+    } catch (err) {
+      setPdfErr(String(err));
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -50,33 +121,62 @@ export default function TabInsumosBIM({ proyecto, data }: TabInsumosBIMProps) {
           </div>
         </div>
 
-        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1">
+            <button
+              type="button"
+              onClick={() => setModo("demanda")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all ${
+                modo === "demanda"
+                  ? "steel-btn-primary text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              <span>{isEn ? "Total Project Demand" : "Demanda Total de Obra"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setModo("ejecutado")}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all ${
+                modo === "ejecutado"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <HardHat className="w-3.5 h-3.5" />
+              <span>{isEn ? "Executed Consumption" : "Consumo Teórico Ejecutado"}</span>
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setModo("demanda")}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all ${
-              modo === "demanda"
-                ? "steel-btn-primary text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            onClick={handleExportPdf}
+            disabled={grouped.length === 0 || exportingPdf}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 shadow-sm transition"
           >
-            <Package className="w-3.5 h-3.5" />
-            <span>{isEn ? "Total Project Demand" : "Demanda Total de Obra"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setModo("ejecutado")}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-all ${
-              modo === "ejecutado"
-                ? "bg-emerald-600 text-white shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <HardHat className="w-3.5 h-3.5" />
-            <span>{isEn ? "Executed Consumption" : "Consumo Teórico Ejecutado"}</span>
+            {exportingPdf ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileDown className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {exportingPdf
+                ? isEn
+                  ? "Generating PDF..."
+                  : "Generando PDF..."
+                : isEn
+                ? "Export Formal PDF"
+                : "Exportar PDF Formal"}
+            </span>
           </button>
         </div>
       </div>
+
+      {pdfErr && (
+        <div className="rounded-xl px-4 py-2.5 text-xs font-bold bg-red-50 border border-red-200 text-red-700">
+          {pdfErr}
+        </div>
+      )}
 
       {proyecto.id === "proto_residencial" && (
         <div className="steel-subcard rounded-2xl p-4 text-xs text-slate-900 flex items-start gap-2.5">

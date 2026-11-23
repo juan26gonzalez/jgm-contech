@@ -261,12 +261,16 @@ def _calcular_insumos_desde_df(df_5d, campo_cant):
             insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Cemento Gris para Plantilla (Sacos)", "Unidad": "Sacos", "Total_Teorico": c_calc * 0.45})
         elif any(k in act_n for k in ["cielorraso", "cielo raso", "drywall", "frescasa", "aislamiento", "aislante", "fibra de vidrio"]):
             if any(k in act_n for k in ["cielorraso", "cielo raso", "drywall"]):
-                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Panel de Cielorraso Suspendido", "Unidad": "m²", "Total_Teorico": c_calc * 1.05})
-                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Perfilería Angular y Perfiles Omega", "Unidad": "ml", "Total_Teorico": c_calc * 1.8})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Lámina de Drywall 1/2" Standard (1.22×2.44 m = 2.98 m², inc. 5% desp.)', "Unidad": "Láminas", "Total_Teorico": (c_calc * 1.05) / 2.9768})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Perfilería Metálica Drywall (Ángulo Perimetral y Perfil Omega)", "Unidad": "ml", "Total_Teorico": c_calc * 1.8})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tornillo para Drywall 6×1" Punta Fina (fijación lámina a perfil)', "Unidad": "Und", "Total_Teorico": c_calc * 15.0})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": 'Tornillo de Estructura 7×7/16" Cabeza Lenteja (perfil a perfil)', "Unidad": "Und", "Total_Teorico": c_calc * 8.0})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Tiros de Fijación (Fulminante Cal. .22 + Clavo c/ Arandela)", "Unidad": "Und", "Total_Teorico": c_calc * 4.0})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Masilla Lista para Drywall (Juntas y Acabado)", "Unidad": "kg", "Total_Teorico": c_calc * 0.9})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Cinta de Papel / Malla para Juntas Drywall", "Unidad": "ml", "Total_Teorico": c_calc * 1.5})
             if any(k in act_n for k in ["frescasa", "aislamiento", "aislante", "fibra de vidrio"]):
                 area_desp = c_calc * 1.05
-                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Rollo Frescasa Eco 2-1/2\" (7.62×1.22m = 9.30 m², +5% desp.)", "Unidad": "Rollos", "Total_Teorico": area_desp / 9.2964})
-                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Aislamiento Fibra de Vidrio Frescasa Eco (Área c/ 5% desp.)", "Unidad": "m²", "Total_Teorico": area_desp})
+                insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Rollo Frescasa Eco 2-1/2\" (7.62×1.22 m = 9.30 m², inc. 5% desp.)", "Unidad": "Rollos", "Total_Teorico": area_desp / 9.2964})
         elif any(k in act_n for k in ["concreto", "zapatas", "zapata", "columnas", "columna", "vigas", "viga", "pedestales", "foso", "losa", "placa"]):
             vol = c_calc * 0.11 if "m2" in und or "m²" in und else c_calc
             insumos_calc.append({"Actividad": r["Actividad"], "Insumo": "Cemento Gris Tipo UG (Sacos 50kg)", "Unidad": "Sacos", "Total_Teorico": vol * 7.0})

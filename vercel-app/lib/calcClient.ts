@@ -726,15 +726,19 @@ export function calcularConsolidacionLocal(
       } else if (actN.includes("plantilla") || actN.includes("solado")) {
         list.push({ Actividad: r.Actividad, Insumo: "Concreto Simple f'c=14 MPa (Plantilla)", Unidad: "m³", Total_Teorico: cCalc * 0.07 });
         list.push({ Actividad: r.Actividad, Insumo: "Cemento Gris para Plantilla (Sacos)", Unidad: "Sacos", Total_Teorico: cCalc * 0.45 });
-      } else if (actN.includes("cielo raso") || actN.includes("cielorraso") || actN.includes("frescasa") || actN.includes("aislamiento")) {
+      } else if (actN.includes("cielo raso") || actN.includes("cielorraso") || actN.includes("drywall") || actN.includes("frescasa") || actN.includes("aislamiento")) {
         if (actN.includes("cielo raso") || actN.includes("cielorraso") || actN.includes("drywall")) {
-          list.push({ Actividad: r.Actividad, Insumo: "Panel de Cielorraso Suspendido", Unidad: "m²", Total_Teorico: cCalc * 1.05 });
-          list.push({ Actividad: r.Actividad, Insumo: "Perfilería Angular y Perfiles Omega", Unidad: "ml", Total_Teorico: cCalc * 1.8 });
+          list.push({ Actividad: r.Actividad, Insumo: 'Lámina de Drywall 1/2" Standard (1.22×2.44 m = 2.98 m², inc. 5% desp.)', Unidad: "Láminas", Total_Teorico: (cCalc * 1.05) / 2.9768 });
+          list.push({ Actividad: r.Actividad, Insumo: "Perfilería Metálica Drywall (Ángulo Perimetral y Perfil Omega)", Unidad: "ml", Total_Teorico: cCalc * 1.8 });
+          list.push({ Actividad: r.Actividad, Insumo: 'Tornillo para Drywall 6×1" Punta Fina (fijación lámina a perfil)', Unidad: "Und", Total_Teorico: cCalc * 15.0 });
+          list.push({ Actividad: r.Actividad, Insumo: 'Tornillo de Estructura 7×7/16" Cabeza Lenteja (perfil a perfil)', Unidad: "Und", Total_Teorico: cCalc * 8.0 });
+          list.push({ Actividad: r.Actividad, Insumo: "Tiros de Fijación (Fulminante Cal. .22 + Clavo c/ Arandela)", Unidad: "Und", Total_Teorico: cCalc * 4.0 });
+          list.push({ Actividad: r.Actividad, Insumo: "Masilla Lista para Drywall (Juntas y Acabado)", Unidad: "kg", Total_Teorico: cCalc * 0.9 });
+          list.push({ Actividad: r.Actividad, Insumo: "Cinta de Papel / Malla para Juntas Drywall", Unidad: "ml", Total_Teorico: cCalc * 1.5 });
         }
         if (actN.includes("frescasa") || actN.includes("aislamiento") || actN.includes("fibra de vidrio")) {
           const areaDesp = cCalc * 1.05;
-          list.push({ Actividad: r.Actividad, Insumo: "Rollo Frescasa Eco 2-1/2\" (7.62×1.22m = 9.30 m², +5% desp.)", Unidad: "Rollos", Total_Teorico: areaDesp / 9.2964 });
-          list.push({ Actividad: r.Actividad, Insumo: "Aislamiento Fibra de Vidrio Frescasa Eco (Área c/ 5% desp.)", Unidad: "m²", Total_Teorico: areaDesp });
+          list.push({ Actividad: r.Actividad, Insumo: "Rollo Frescasa Eco 2-1/2\" (7.62×1.22 m = 9.30 m², inc. 5% desp.)", Unidad: "Rollos", Total_Teorico: areaDesp / 9.2964 });
         }
       } else if (actN.includes("concreto") || actN.includes("zapata") || actN.includes("columna") || actN.includes("viga") || actN.includes("pedestal") || actN.includes("losa") || actN.includes("placa")) {
         const vol = r.Unidad === "m²" ? cCalc * 0.11 : cCalc;

@@ -8,6 +8,7 @@ import {
   CloudCog,
   DollarSign,
   DoorOpen,
+  FileDown,
   FileSpreadsheet,
   Gem,
   Layers,
@@ -22,7 +23,7 @@ import {
   Upload,
   Wallet,
 } from "lucide-react";
-import { callPythonJson, normalizarTexto } from "../lib/calcClient";
+import { callPythonJson, downloadPythonBinary, normalizarTexto } from "../lib/calcClient";
 import { useAppPreferences } from "../lib/i18n";
 import {
   CASA_MENDOZA_ROOM_ORDER,
@@ -50,6 +51,7 @@ import {
   localizeMaterialName,
   localizeRoomName,
   localizeTerm,
+  sanitizeDemoProject,
   unitConversionFactor,
 } from "../lib/units";
 
@@ -67,7 +69,7 @@ const ACTIVITY_LABELS_ES: Record<RoomActivityKey, string> = {
   plantilla: "Plantilla de concreto 7cm",
   enchape: "Enchape piso porcelanato 51x51",
   enchape_pared: "Enchape pared cerámica / porcelanato",
-  cielorraso: "Cielo raso",
+  cielorraso: 'Cielo raso en Drywall 1/2"',
   frescasa: "Frescasa Eco 2-1/2\" (sobre cielo raso)",
   mamposteria: "Muros mampostería bloque No. 12",
   panete: "Pañete muros",
@@ -81,7 +83,7 @@ const ACTIVITY_LABELS_EN: Record<RoomActivityKey, string> = {
   plantilla: "Concrete floor screed 2.75 in",
   enchape: "Porcelain floor tile 20x20 in",
   enchape_pared: "Ceramic / porcelain wall tile",
-  cielorraso: "Suspended ceiling",
+  cielorraso: '1/2" Drywall suspended ceiling',
   frescasa: "Frescasa Eco 2-1/2\" (above ceiling)",
   mamposteria: "CMU block masonry walls",
   panete: "Stucco & plaster render",
@@ -92,22 +94,27 @@ const ACTIVITY_LABELS_EN: Record<RoomActivityKey, string> = {
 };
 
 const ROOM_MATERIAL_EN: Record<string, string> = {
-  "Concreto Simple f'c=14 MPa (Plantilla e=7cm)": "Plain concrete f'c=2,000 PSI (2.75 in screed)",
-  "Cemento Gris para Plantilla (Sacos 50kg)": "Gray Portland cement for screed (110 lb bags)",
-  "Porcelanato / Cerámica 51x51 cm (inc. 5% desp.)": "Porcelain / ceramic tile 20x20 in (incl. 5% waste)",
-  "Pegacor Cerámico (Bultos 25kg)": "Polymer tile adhesive mortar (55 lb bags)",
-  "Boquilla para Junta": "Tile grout for joints",
+  "Cemento Gris Tipo UG para Plantilla e=7cm (Sacos 50 kg)": "Gray Portland cement for 2.75 in screed (110 lb bags)",
+  "Arena Lavada de Río para Plantilla (0.07 m³/m²)": "Washed river sand for floor screed",
+  'Gravilla / Triturado 3/4" para Plantilla': '3/4" Crushed gravel aggregate for screed',
+  "Porcelanato / Cerámica 51×51 cm (inc. 5% desp.)": "Porcelain / ceramic floor tile 20×20 in (incl. 5% waste)",
+  "Pegacor Cerámico / Porcelanato (Bultos 25 kg)": "Polymer tile adhesive mortar (55 lb bags)",
+  "Boquilla para Junta de Piso": "Floor tile joint grout",
   "Cerámica / Porcelanato de Pared (inc. 8% desp. cortes)": "Wall ceramic / porcelain tile (incl. 8% cut waste)",
-  "Pegacor Blanco / Cerámico Pared (Bultos 25kg)": "White wall tile adhesive (55 lb bags)",
+  "Pegacor Blanco / Cerámico Pared (Bultos 25 kg)": "White wall tile adhesive (55 lb bags)",
   "Boquilla Antimoho para Muro": "Mildew-resistant wall grout",
-  "Panel de Cielorraso Suspendido (inc. 5% desp.)": "Suspended drywall ceiling panel (incl. 5% waste)",
-  "Perfilería Angular y Perfiles Omega": "Perimeter angle & furring channel grid",
-  "Rollo Frescasa Eco 2-1/2\" (7.62×1.22m = 9.30 m², inc. 5% desp.)": "Frescasa Eco 2-1/2\" fiberglass roll (100 ft², incl. 5% waste)",
-  "Aislamiento Fibra de Vidrio Frescasa Eco (Área c/ 5% desp.)": "Frescasa Eco fiberglass insulation (net area + 5%)",
-  "Bloque de Concreto No. 12 (40x20x12)": "Concrete masonry unit CMU (16x8x5 in)",
-  "Cemento Gris para Pega (Sacos 50kg)": "Gray Portland cement for mortar (110 lb bags)",
+  'Lámina de Drywall 1/2" Standard (1.22×2.44 m = 2.98 m², inc. 5% desp.)': '1/2" Standard Gypsum Drywall Sheet (4\'×8\' = 32 ft², +5% waste)',
+  "Perfilería Metálica Drywall (Ángulo Perimetral y Perfil Omega)": "Galvanized Drywall Framing (Perimeter Angle & Omega Furring)",
+  'Tornillo para Drywall 6×1" Punta Fina (fijación lámina a perfil)': '#6×1" Fine-Thread Drywall Screws (Board-to-Channel)',
+  'Tornillo de Estructura 7×7/16" Cabeza Lenteja (perfil a perfil)': '#7×7/16" Pan-Head Framing Screws (Metal-to-Metal)',
+  "Tiros de Fijación (Fulminante Cal. .22 + Clavo c/ Arandela)": "Powder-Actuated Fastener Shots (.22 Cal. Charge + Washer Pin)",
+  "Masilla Lista para Drywall (Juntas y Acabado)": "Ready-Mix Drywall Joint Compound",
+  "Cinta de Papel / Malla para Juntas Drywall": "Drywall Joint Paper / Mesh Tape",
+  'Rollo Frescasa Eco 2-1/2" (7.62×1.22 m = 9.30 m², inc. 5% desp.)': 'Frescasa Eco 2-1/2" fiberglass roll (100 ft², incl. 5% waste)',
+  "Bloque de Concreto No. 12 (40×20×12 cm)": "Concrete masonry unit CMU (16×8×5 in)",
+  "Cemento Gris para Pega (Sacos 50 kg)": "Gray Portland cement for mortar (110 lb bags)",
   "Arena Fina para Mortero de Pega": "Fine washed masonry sand",
-  "Cemento Gris para Pañete (Sacos 50kg)": "Gray Portland cement for plaster (110 lb bags)",
+  "Cemento Gris para Pañete (Sacos 50 kg)": "Gray Portland cement for plaster (110 lb bags)",
   "Arena Lavada para Pañete": "Washed plastering sand",
   "Estuco Plástico Listo (Cuñetes)": "Ready-mix acrylic skim coat (5-gal pails)",
   "Pintura Vinilo Tipo 1 (Galones)": "Architectural latex paint Type 1 (gal)",
@@ -115,6 +122,16 @@ const ROOM_MATERIAL_EN: Record<string, string> = {
   "Mortero Afine Impermeabilizado Pendiente 1% (1:3)": "1% sloped waterproofed mortar screed (1:3)",
   "Membrana Elastomérica Impermeabilizante Cubierta": "Elastomeric waterproof roof membrane",
   'Tubería PVC Sanitaria Ø 4" (110 mm) NTC 1087': '4" (110 mm) Sanitary PVC Rainwater Pipe ASTM D2665',
+};
+
+const ROOM_CATEGORY_EN: Record<string, string> = {
+  "Obra Gris / Plantilla": "Floor Screed & Concrete",
+  "Pisos y Enchapes": "Floor & Wall Tiling",
+  "Cielo Raso Drywall": "Drywall Ceiling & Fasteners",
+  "Aislamiento Térmico": "Thermal-Acoustic Insulation",
+  "Mampostería y Pañete": "Masonry & Plastering",
+  "Pintura y Acabados": "Skim Coat & Paint",
+  "Cubierta": "Roofing & Waterproofing",
 };
 
 function localizeRoomMaterialUnit(unit: string, lang: "es" | "en"): string {
@@ -151,11 +168,11 @@ export default function TabHabitacionesBIM({
     currency,
     unitSystem,
     rates,
+    docOpts,
     formatMoney,
     formatConvertedMoney,
     formatUnitMoney,
     formatQty,
-    convertQtyValue,
     unitLabel,
   } = useAppPreferences();
   const isEn = lang === "en";
@@ -203,6 +220,9 @@ export default function TabHabitacionesBIM({
   // Quick unit price overrides & Revit import
   const [showPricePanel, setShowPricePanel] = useState(false);
   const [priceOverrides, setPriceOverrides] = useState<Partial<Record<RoomActivityKey, number>>>({});
+  const [matPriceOverrides, setMatPriceOverrides] = useState<Record<string, number>>({});
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
   const [mergeOnImport, setMergeOnImport] = useState(true);
   const [importingRevit, setImportingRevit] = useState(false);
   const [importStatus, setImportStatus] = useState<{ type: "ok" | "err"; msg: string } | null>(null);
@@ -339,6 +359,120 @@ export default function TabHabitacionesBIM({
     () => computeMaterialsForRoomSelection(selectedItems),
     [selectedItems]
   );
+
+  const totalMaterialesRefCop = useMemo(
+    () =>
+      materialesSeleccion.reduce((acc, m) => {
+        const key = `${m.insumo}||${m.unidad}`;
+        const puCop = matPriceOverrides[key] ?? m.precioUnitRef;
+        return acc + m.cantidadCompra * puCop;
+      }, 0),
+    [materialesSeleccion, matPriceOverrides]
+  );
+
+  const selectedRoomsSummary = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        selectedItems
+          .filter((it) => it.quantity > 0)
+          .map((it) => localizeRoomName(it.room, lang))
+      )
+    );
+    if (names.length === 0) return isEn ? "Selected Phase" : "Fase Seleccionada";
+    if (names.length <= 3) return names.join(", ");
+    return `${names.slice(0, 3).join(", ")} (+${names.length - 3} ${isEn ? "more" : "más"})`;
+  }, [selectedItems, lang, isEn]);
+
+  const handleExportPdfInsumos = async () => {
+    if (selectedItems.length === 0 || materialesSeleccion.length === 0) return;
+    setExportingPdf(true);
+    setPdfStatus(null);
+    try {
+      const effectiveDemo = proyecto.id === "demo_showcase";
+      const cleanProj = sanitizeDemoProject(proyecto, effectiveDemo, lang);
+
+      const actividadesPayload = selectedItems
+        .filter((it) => it.quantity > 0)
+        .map((it) => {
+          const puCop = resolveUnitPriceForRoomItem(it, proyecto.ppto_base, priceOverrides);
+          const dispQty = convertQty(it.quantity, it.unit, lang);
+          const factor = unitSystem === "imperial" ? unitConversionFactor(it.unit) : 1;
+          const puDisp = (puCop / factor) / fxRate;
+          const subDisp = (it.quantity * puCop) / fxRate;
+          return {
+            habitacion: localizeRoomName(it.room, lang),
+            actividad: localizeActivity(it.activityLabel, lang),
+            unidad: unitLabel(it.unit),
+            cantidad: Number(dispQty.toFixed(2)),
+            precio_unitario: Number(puDisp.toFixed(2)),
+            subtotal: Number(subDisp.toFixed(2)),
+          };
+        });
+
+      const insumosPayload = materialesSeleccion.map((mat) => {
+        const key = `${mat.insumo}||${mat.unidad}`;
+        const puCop = matPriceOverrides[key] ?? mat.precioUnitRef;
+        const dispQty = convertQty(mat.cantidad, mat.unidad, lang);
+        const dispBuy = convertQty(mat.cantidadCompra, mat.unidad, lang);
+        const factor = unitSystem === "imperial" ? unitConversionFactor(mat.unidad) : 1;
+        const puDisp = (puCop / factor) / fxRate;
+        const subDisp = (mat.cantidadCompra * puCop) / fxRate;
+        return {
+          categoria: isEn ? ROOM_CATEGORY_EN[mat.categoria] || mat.categoria : mat.categoria,
+          insumo: localizeRoomMaterialName(mat.insumo, lang),
+          unidad: localizeRoomMaterialUnit(mat.unidad, lang),
+          cantidad: Number(dispQty.toFixed(2)),
+          cantidad_compra: Number(dispBuy.toFixed(2)),
+          precio_unitario: Number(puDisp.toFixed(2)),
+          subtotal: Number(subDisp.toFixed(2)),
+        };
+      });
+
+      const slugZone = selectedRoomsSummary
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "_")
+        .replace(/^_|_$/g, "")
+        .slice(0, 32);
+      const fname = isEn
+        ? `Material_Budget_${proyecto.id}_${slugZone || "Phase"}_${currency}.pdf`
+        : `Presupuesto_Insumos_${proyecto.id}_${slugZone || "Fase"}_${currency}.pdf`;
+
+      await downloadPythonBinary(
+        {
+          action: "presupuesto_insumos_pdf",
+          insumos: insumosPayload,
+          actividades: actividadesPayload,
+          proyecto_actual: cleanProj,
+          cfg: {
+            zonas_resumen: selectedRoomsSummary,
+            incluir_aiu: incluirAiu,
+            pct_aiu: pctAiuTotal,
+          },
+          doc_opts: {
+            ...docOpts,
+            is_demo: effectiveDemo,
+          },
+        },
+        fname
+      );
+      setPdfStatus({
+        type: "ok",
+        msg: isEn
+          ? `Formal material procurement PDF generated for ${selectedRoomsSummary}.`
+          : `PDF formal de presupuesto de insumos generado para: ${selectedRoomsSummary}.`,
+      });
+    } catch (err) {
+      setPdfStatus({
+        type: "err",
+        msg: isEn
+          ? `Could not generate PDF: ${String(err)}`
+          : `No se pudo generar el PDF formal: ${String(err)}`,
+      });
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   const toggleItem = (id: string) => {
     setSelectedIds((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -558,12 +692,25 @@ export default function TabHabitacionesBIM({
       );
     }
     lines.push("");
-    lines.push(isEn ? "MATERIAL_TAKEOFF_SELECTION;;;;;;;" : "EXPLOSION_INSUMOS_SELECCION;;;;;;;");
-    lines.push(isEn ? "Material;Unit;Theoretical_Quantity;;;;;" : "Material;Unidad;Cantidad_Teorica;;;;;");
+    lines.push(isEn ? "MATERIAL_TAKEOFF_SELECTION;;;;;;;" : "PRESUPUESTO_INSUMOS_SELECCION;;;;;;;");
+    lines.push(
+      isEn
+        ? `Category;Material;Unit;Exact_Qty;Buy_Qty;Ref_Unit_Price_${currency};Ref_Subtotal_${currency}`
+        : `Categoria;Insumo;Unidad;Cantidad_Exacta;Cantidad_Compra;Precio_Unit_Ref_${currency};Subtotal_Ref_${currency}`
+    );
     for (const mat of materialesSeleccion) {
+      const key = `${mat.insumo}||${mat.unidad}`;
+      const puCop = matPriceOverrides[key] ?? mat.precioUnitRef;
       const dispQty = convertQty(mat.cantidad, mat.unidad, lang);
+      const dispBuy = convertQty(mat.cantidadCompra, mat.unidad, lang);
       const dispUnit = localizeRoomMaterialUnit(mat.unidad, lang);
-      lines.push(`"${localizeRoomMaterialName(mat.insumo, lang)}";"${dispUnit}";${dispQty.toFixed(2)};;;;;`);
+      const factor = unitSystem === "imperial" ? unitConversionFactor(mat.unidad) : 1;
+      const puDisp = ((puCop / factor) / fxRate).toFixed(2);
+      const subDisp = ((mat.cantidadCompra * puCop) / fxRate).toFixed(2);
+      const catLabel = isEn ? ROOM_CATEGORY_EN[mat.categoria] || mat.categoria : mat.categoria;
+      lines.push(
+        `"${catLabel}";"${localizeRoomMaterialName(mat.insumo, lang)}";"${dispUnit}";${dispQty.toFixed(2)};${dispBuy.toFixed(2)};${puDisp};${subDisp}`
+      );
     }
 
     const blob = new Blob(["\uFEFF" + lines.join("\n")], {
@@ -1005,6 +1152,27 @@ export default function TabHabitacionesBIM({
               </button>
               <button
                 type="button"
+                onClick={handleExportPdfInsumos}
+                disabled={selectedItems.length === 0 || exportingPdf}
+                className="px-3 py-1.5 rounded-xl text-[11px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 inline-flex items-center justify-center gap-1.5 shadow-sm transition"
+              >
+                {exportingPdf ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <FileDown className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  {exportingPdf
+                    ? isEn
+                      ? "Generating PDF..."
+                      : "Generando PDF..."
+                    : isEn
+                    ? "Export Material PDF"
+                    : "Exportar PDF Insumos"}
+                </span>
+              </button>
+              <button
+                type="button"
                 onClick={handleExportCsvSelection}
                 disabled={selectedItems.length === 0}
                 className="px-3 py-1.5 rounded-xl text-[11px] font-bold border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
@@ -1337,26 +1505,76 @@ export default function TabHabitacionesBIM({
 
       {/* SELECTION MATERIAL TAKEOFF */}
       <div className="bento-card space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <div>
             <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
               <Package className="w-4 h-4 text-slate-700" />
               <span>
                 {isEn
-                  ? "Exact Material Purchase List for Selected Zones"
-                  : "Lista Exacta de Materiales para las Habitaciones Seleccionadas"}
+                  ? "Formal Material Budget & Purchase List for Selected Zones"
+                  : "Presupuesto Exacto de Insumos y Materiales para las Habitaciones Seleccionadas"}
               </span>
             </h3>
             <p className="text-xs text-slate-500">
               {isEn
-                ? "Calculated exclusively from the checked items above (ideal for zone-by-zone purchasing)."
-                : "Calculada exclusivamente sobre los ítems marcados arriba (ideal para pedir materiales solo de esa habitación o fase)."}
+                ? `Scope: ${selectedRoomsSummary} • Drywall 1/2" incl. framing, drywall screws, framing screws & .22 shots. Reference prices editable inline.`
+                : `Alcance: ${selectedRoomsSummary} • Cielo raso Drywall 1/2" con perfilería, tornillería drywall, tornillo estructura y tiros. Puedes ajustar precios de ferretería antes de exportar el PDF.`}
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-900 font-bold text-[11px] border border-slate-300">
-            {selectedItems.length} {isEn ? "selected line items" : "partidas seleccionadas"}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {Object.keys(matPriceOverrides).length > 0 && (
+              <button
+                type="button"
+                onClick={() => setMatPriceOverrides({})}
+                className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-slate-300 bg-white hover:bg-slate-100 text-slate-700"
+              >
+                {isEn ? "Reset Ref. Prices" : "Restaurar precios ref."}
+              </button>
+            )}
+            <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-900 font-bold text-[11px] border border-slate-300">
+              {selectedItems.length} {isEn ? "selected line items" : "partidas"} •{" "}
+              {materialesSeleccion.length} {isEn ? "materials" : "insumos"}
+            </span>
+            <button
+              type="button"
+              onClick={handleExportPdfInsumos}
+              disabled={materialesSeleccion.length === 0 || exportingPdf}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 inline-flex items-center gap-1.5 shadow-sm transition"
+            >
+              {exportingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileDown className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {exportingPdf
+                  ? isEn
+                    ? "Generating PDF..."
+                    : "Generando PDF..."
+                  : isEn
+                  ? "Export Formal Material Budget (PDF)"
+                  : "Exportar Presupuesto de Insumos (PDF)"}
+              </span>
+            </button>
+          </div>
         </div>
+
+        {pdfStatus && (
+          <div
+            className={`rounded-xl px-3.5 py-2 text-xs font-bold border flex items-center gap-2 ${
+              pdfStatus.type === "err"
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-emerald-50 border-emerald-200 text-emerald-800"
+            }`}
+          >
+            {pdfStatus.type === "err" ? (
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+            )}
+            <span>{pdfStatus.msg}</span>
+          </div>
+        )}
 
         {materialesSeleccion.length === 0 ? (
           <div className="steel-subcard rounded-xl py-6 text-center text-xs text-slate-500">
@@ -1370,29 +1588,87 @@ export default function TabHabitacionesBIM({
               <thead className="bg-slate-900 text-white font-bold">
                 <tr>
                   <th className="p-2.5">
-                    {isEn ? "Material / Resource for Phase" : "Insumo / Material para esta Fase"}
+                    {isEn ? "Material / Technical Specification" : "Insumo / Especificación Técnica"}
                   </th>
-                  <th className="p-2.5 text-center w-28">{isEn ? "Unit" : "Unidad"}</th>
-                  <th className="p-2.5 text-right w-40">
-                    {isEn ? "Exact Quantity" : "Cantidad Exacta"}
+                  <th className="p-2.5 text-center w-24">{isEn ? "Unit" : "Unidad"}</th>
+                  <th className="p-2.5 text-right w-24">
+                    {isEn ? "Exact Qty" : "Cant. Exacta"}
+                  </th>
+                  <th className="p-2.5 text-right w-24">
+                    {isEn ? "Buy Qty" : "Cant. Compra"}
+                  </th>
+                  <th className="p-2.5 text-right w-32">
+                    {isEn ? `Ref. Price (${currency})` : `P. Unit. Ref. (${currency})`}
+                  </th>
+                  <th className="p-2.5 text-right w-32">
+                    {isEn ? "Ref. Subtotal" : "Subtotal Ref."}
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {materialesSeleccion.map((mat) => (
-                  <tr key={`${mat.insumo}-${mat.unidad}`} className="hover:bg-slate-100/60">
-                    <td className="p-2.5 font-bold text-slate-900">
-                      {localizeRoomMaterialName(mat.insumo, lang)}
-                    </td>
-                    <td className="p-2.5 text-center font-mono text-slate-600">
-                      {localizeRoomMaterialUnit(mat.unidad, lang)}
-                    </td>
-                    <td className="p-2.5 text-right font-mono font-extrabold text-slate-900">
-                      {formatQty(mat.cantidad, mat.unidad, 2)}
-                    </td>
-                  </tr>
-                ))}
+                {materialesSeleccion.map((mat) => {
+                  const key = `${mat.insumo}||${mat.unidad}`;
+                  const puCop = matPriceOverrides[key] ?? mat.precioUnitRef;
+                  const factor = unitSystem === "imperial" ? unitConversionFactor(mat.unidad) : 1;
+                  const puDisplay = (puCop / factor) / fxRate;
+                  const subtotalCop = mat.cantidadCompra * puCop;
+                  const buyDisp = convertQty(mat.cantidadCompra, mat.unidad, lang);
+                  const buyFormatted =
+                    Math.abs(buyDisp - Math.round(buyDisp)) < 1e-6
+                      ? Math.round(buyDisp).toLocaleString(isEn ? "en-US" : "es-CO")
+                      : buyDisp.toFixed(2);
+                  return (
+                    <tr key={`${mat.insumo}-${mat.unidad}`} className="hover:bg-slate-100/60">
+                      <td className="p-2.5">
+                        <div className="font-bold text-slate-900">
+                          {localizeRoomMaterialName(mat.insumo, lang)}
+                        </div>
+                        <span className="inline-block mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                          {isEn ? ROOM_CATEGORY_EN[mat.categoria] || mat.categoria : mat.categoria}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-center font-mono text-slate-600">
+                        {localizeRoomMaterialUnit(mat.unidad, lang)}
+                      </td>
+                      <td className="p-2.5 text-right font-mono text-slate-600">
+                        {formatQty(mat.cantidad, mat.unidad, 2)}
+                      </td>
+                      <td className="p-2.5 text-right font-mono font-extrabold text-emerald-700">
+                        {buyFormatted}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        <input
+                          type="number"
+                          min={0}
+                          step={currency === "COP" ? 50 : 0.05}
+                          value={currency === "COP" ? Math.round(puDisplay) : Number(puDisplay.toFixed(2))}
+                          onChange={(e) => {
+                            const val = Math.max(0, Number(e.target.value) || 0);
+                            const nextCop = val * fxRate * factor;
+                            setMatPriceOverrides((prev) => ({ ...prev, [key]: nextCop }));
+                          }}
+                          className="w-24 text-right rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono font-bold text-slate-900 text-xs"
+                        />
+                      </td>
+                      <td className="p-2.5 text-right font-mono font-extrabold text-slate-900">
+                        {formatMoney(subtotalCop, decimalsMoney)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot>
+                <tr className="bg-slate-900 text-white">
+                  <td colSpan={5} className="p-3 font-extrabold text-xs uppercase tracking-wide">
+                    {isEn
+                      ? "Total Estimated Material Purchase Budget (Hardware Store Ref.)"
+                      : "Total Estimado Presupuesto de Insumos (Compra en Ferretería)"}
+                  </td>
+                  <td className="p-3 text-right font-mono font-extrabold text-sm text-emerald-300">
+                    {formatMoney(totalMaterialesRefCop, decimalsMoney)}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
