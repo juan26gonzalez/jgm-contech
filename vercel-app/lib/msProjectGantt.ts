@@ -733,9 +733,9 @@ export function enrichGanttWithExecution(
     }
 
     const ejecutado = matchedRow ? Number(matchedRow.Cantidad_Ejecutada) || 0 : 0;
-    const pctReal = matchedRow
-      ? Number(matchedRow["Avance_%"]) || 0
-      : Number(task.pctManual || 0);
+    const fieldPct = matchedRow ? Number(matchedRow["Avance_%"]) || 0 : 0;
+    const manualPct = Number(task.pctManual || 0);
+    const pctReal = fieldPct > 0 ? fieldPct : manualPct;
     const desviacion = pctReal - pctProgramado;
 
     let estado: GanttTaskState = "por_iniciar";
