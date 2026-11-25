@@ -1630,18 +1630,18 @@ export default function TabCurvaS({
         <div className="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-inner">
           <div className="overflow-x-auto max-h-[560px] overflow-y-auto relative">
             <div className="flex min-w-max">
-              {/* LEFT STICKY PANE: WBS Table */}
-              <div className="w-[450px] min-w-[450px] sticky left-0 z-20 bg-white border-r-2 border-slate-300 shadow-[4px_0_12px_-4px_rgba(15,23,42,0.12)]">
+              {/* LEFT STICKY PANE: WBS Table (compact on mobile so Gantt bars stay visible side-by-side) */}
+              <div className="w-[155px] min-w-[155px] sm:w-[230px] sm:min-w-[230px] lg:w-[450px] lg:min-w-[450px] sticky left-0 z-20 bg-white border-r-2 border-slate-300 shadow-[4px_0_12px_-4px_rgba(15,23,42,0.12)]">
                 <div
                   style={{ height: TIMELINE_HEADER_HEIGHT }}
-                  className="bg-slate-900 text-slate-100 text-[10px] font-bold uppercase tracking-wider grid grid-cols-[44px_1fr_64px_64px_42px_52px] items-center px-2 border-b border-slate-700 sticky top-0 z-30"
+                  className="bg-slate-900 text-slate-100 text-[10px] font-bold uppercase tracking-wider grid grid-cols-[26px_1fr_36px] sm:grid-cols-[34px_1fr_44px] lg:grid-cols-[44px_1fr_64px_64px_42px_52px] items-center px-1.5 lg:px-2 border-b border-slate-700 sticky top-0 z-30"
                 >
                   <span>{isEn ? "WBS" : "EDT"}</span>
-                  <span>{isEn ? "Task / Phase Name" : "Nombre de Tarea / Capítulo"}</span>
-                  <span className="text-center">{isEn ? "Start" : "Comienzo"}</span>
-                  <span className="text-center">{isEn ? "Finish" : "Fin"}</span>
-                  <span className="text-center">{isEn ? "Days" : "Días"}</span>
-                  <span className="text-right pr-1">{isEn ? "% Act" : "% Real"}</span>
+                  <span>{isEn ? "Task / Phase" : "Tarea / Fase"}</span>
+                  <span className="hidden lg:inline text-center">{isEn ? "Start" : "Comienzo"}</span>
+                  <span className="hidden lg:inline text-center">{isEn ? "Finish" : "Fin"}</span>
+                  <span className="hidden lg:inline text-center">{isEn ? "Days" : "Días"}</span>
+                  <span className="text-right pr-0.5 lg:pr-1">{isEn ? "%" : "%"}</span>
                 </div>
 
                 <div>
@@ -1660,7 +1660,7 @@ export default function TabCurvaS({
                           key={t.id}
                           onClick={() => setSelectedTaskId(t.id)}
                           style={{ height: ROW_HEIGHT }}
-                          className={`grid grid-cols-[44px_1fr_64px_64px_42px_52px] items-center px-2 border-b border-slate-100 text-[11px] cursor-pointer transition-colors ${
+                          className={`grid grid-cols-[26px_1fr_36px] sm:grid-cols-[34px_1fr_44px] lg:grid-cols-[44px_1fr_64px_64px_42px_52px] items-center px-1.5 lg:px-2 border-b border-slate-100 text-[10.5px] lg:text-[11px] cursor-pointer transition-colors ${
                             t.esResumen
                               ? "bg-slate-100 font-extrabold text-slate-900"
                               : isSelected
@@ -1668,10 +1668,10 @@ export default function TabCurvaS({
                               : "bg-white hover:bg-slate-50 text-slate-700"
                           }`}
                         >
-                          <span className="font-mono text-[10px] text-slate-500 truncate">
+                          <span className="font-mono text-[9.5px] lg:text-[10px] text-slate-500 truncate">
                             {t.wbs}
                           </span>
-                          <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                          <div className="flex items-center gap-1 lg:gap-1.5 min-w-0 pr-1 lg:pr-2">
                             {t.rutaCritica && !t.esResumen && (
                               <span
                                 className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"
@@ -1685,18 +1685,18 @@ export default function TabCurvaS({
                               {localizedTitle}
                             </span>
                           </div>
-                          <span className="text-center font-mono text-[10px] text-slate-500">
+                          <span className="hidden lg:inline text-center font-mono text-[10px] text-slate-500">
                             {formatShortDate(t.inicio, lang)}
                           </span>
-                          <span className="text-center font-mono text-[10px] text-slate-500">
+                          <span className="hidden lg:inline text-center font-mono text-[10px] text-slate-500">
                             {formatShortDate(t.fin, lang)}
                           </span>
-                          <span className="text-center font-mono text-[10px] text-slate-600">
+                          <span className="hidden lg:inline text-center font-mono text-[10px] text-slate-600">
                             {t.esHito ? "0d" : `${t.duracionDias}d`}
                           </span>
-                          <div className="text-right pr-1">
+                          <div className="text-right pr-0.5 lg:pr-1">
                             <span
-                              className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold kpi-num ${
+                              className={`inline-block px-1 lg:px-1.5 py-0.5 rounded text-[9.5px] lg:text-[10px] font-bold kpi-num ${
                                 t.esResumen
                                   ? "bg-slate-200 text-slate-800"
                                   : t.pctReal >= 99.5
